@@ -30,6 +30,12 @@
 # define PROTOBUF_C_END_DECLS
 #endif
 
+#if !defined(PROTOBUF_C_NO_DEPRECATED) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1))
+#define PROTOBUF_C_DEPRECATED __attribute__((__deprecated__))
+#else
+#define PROTOBUF_C_DEPRECATED
+#endif
+
 PROTOBUF_C_BEGIN_DECLS
 
 typedef enum
