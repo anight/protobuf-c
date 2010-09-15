@@ -1856,6 +1856,13 @@ protobuf_c_message_free_unpacked  (ProtobufCMessage    *message,
   FREE (allocator, message);
 }
 
+void
+protobuf_c_message_init (const ProtobufCMessageDescriptor *descriptor,
+                         void                   *message)
+{
+  descriptor->message_init((ProtobufCMessage*) (message));
+}
+
 /* === services === */
 typedef void (*GenericHandler)(void *service,
                                const ProtobufCMessage *input,
