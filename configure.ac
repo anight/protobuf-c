@@ -1,4 +1,4 @@
-AC_INIT([protobuf-c], [0.14])
+AC_INIT([protobuf-c], [0.15])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([1.9 foreign])
 PACKAGE=protobuf-c
