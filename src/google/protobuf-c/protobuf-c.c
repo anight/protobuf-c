@@ -1,29 +1,53 @@
 /* --- protobuf-c.c: public protobuf c runtime implementation --- */
 
 /*
- * Copyright 2008, Dave Benson.
+ * Copyright (c) 2008-2011, Dave Benson.
  * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with
- * the License. You may obtain a copy of the License
- * at http://www.apache.org/licenses/LICENSE-2.0 Unless
- * required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on
- * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with
+ * or without modification, are permitted provided that the
+ * following conditions are met:
+ * 
+ * Redistributions of source code must retain the above
+ * copyright notice, this list of conditions and the following
+ * disclaimer.
+
+ * Redistributions in binary form must reproduce
+ * the above copyright notice, this list of conditions and
+ * the following disclaimer in the documentation and/or other
+ * materials provided with the distribution.
+ *
+ * Neither the name
+ * of "protobuf-c" nor the names of its contributors
+ * may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* TODO: certain implementations use 32-bit math even on 64-bit platforms
-   (uint64_size, uint64_pack, parse_uint64) */
 
-/* TODO: get_packed_size and pack seem to use type-prefixed names,
-   whereas parse uses type-suffixed names.  pick one and stick with it.
-      Decision:  go with type-suffixed, since the type (or its instance)
-      is typically the object of the verb.
-   NOTE: perhaps the "parse" methods should be reanemd to "unpack"
-   at the same time.
+/* TODO items:
+
+     * 64-BIT OPTIMIZATION: certain implementations use 32-bit math even on 64-bit platforms
+        (uint64_size, uint64_pack, parse_uint64)
+
+     * use TRUE and FALSE instead of 1 and 0 as appropriate
+
+     * use size_t consistently
  */
 
 #include <stdio.h>                      /* for occasional printf()s */
