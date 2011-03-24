@@ -144,9 +144,10 @@ ProtobufCAllocator protobuf_c_default_allocator =
 {
   system_alloc,
   system_free,
-  NULL,
-  8192,
-  NULL
+  NULL,         /* allocator_data */
+  NULL,         /* tmp_alloc */
+  NULL,         /* alloc_unaligned */
+  NULL,         /* unpack_error_handler: use default */
 };
 
 /* Users should NOT modify this structure,
@@ -157,10 +158,12 @@ ProtobufCAllocator protobuf_c_system_allocator =
 {
   system_alloc,
   system_free,
-  NULL,
-  8192,
-  NULL
+  NULL,         /* allocator_data */
+  NULL,         /* tmp_alloc */
+  NULL,         /* alloc_unaligned */
+  NULL,         /* unpack_error_handler: use default */
 };
+
 
 /* === buffer-simple === */
 void
@@ -550,7 +553,7 @@ int32_pack (int32_t value, uint8_t *out)
     return uint32_pack (value, out);
 }
 
-/* Pack a 32-bit integer in zigwag encoding. */
+/* Pack a 32-bit integer in zigzag encoding. */
 static inline size_t
 sint32_pack (int32_t value, uint8_t *out)
 {
