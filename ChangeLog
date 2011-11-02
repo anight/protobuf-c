@@ -1,4 +1,8 @@
+0.16:
       - switch to New BSD license.
+      - bug in packing 64-bit versions on some platforms
+        (srobbins99: Issue #68 Comment 1)
+
 0.15:
       - make protobuf_c_message_init() into a function (Issue #49, daveb)
       - Fix for freeing memory after unpacking bytes w/o a default-value.
