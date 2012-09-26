@@ -246,7 +246,7 @@ sint32_size (int32_t v)
 static inline size_t
 uint64_size (uint64_t v)
 {
-  uint32_t upper_v = (v>>32);
+  uint32_t upper_v = (uint32_t )(v>>32);
   if (upper_v == 0)
     return uint32_size ((uint32_t)v);
   else if (upper_v < (1<<3))
@@ -538,8 +538,8 @@ sint32_pack (int32_t value, uint8_t *out)
 static size_t
 uint64_pack (uint64_t value, uint8_t *out)
 {
-  uint32_t hi = value>>32;
-  uint32_t lo = value;
+  uint32_t hi = (uint32_t )(value>>32);
+  uint32_t lo = (uint32_t )value;
   unsigned rv;
   if (hi == 0)
     return uint32_pack ((uint32_t)lo, out);
@@ -579,15 +579,16 @@ sint64_pack (int64_t value, uint8_t *out)
 /* Pack a 32-bit value, little-endian.
    Used for fixed32, sfixed32, float) */
 static inline size_t
-fixed32_pack (uint32_t value, uint8_t *out)
+fixed32_pack (uint32_t value, void *out)
 {
 #if IS_LITTLE_ENDIAN
   memcpy (out, &value, 4);
 #else
-  out[0] = value;
-  out[1] = value>>8;
-  out[2] = value>>16;
-  out[3] = value>>24;
+  uint8_t *buf = out;
+  buf[0] = value;
+  buf[1] = value>>8;
+  buf[2] = value>>16;
+  buf[3] = value>>24;
 #endif
   return 4;
 }
@@ -598,7 +599,7 @@ fixed32_pack (uint32_t value, uint8_t *out)
    a 64-bit version would be appreciated, plus a way
    to decide to use 64-bit math where convenient. */
 static inline size_t
-fixed64_pack (uint64_t value, uint8_t *out)
+fixed64_pack (uint64_t value, void *out)
 {
 #if IS_LITTLE_ENDIAN
   memcpy (out, &value, 8);
@@ -1217,9 +1218,10 @@ static uint64_t
 parse_uint64 (unsigned len, const uint8_t *data)
 {
   unsigned shift, i;
+  uint64_t rv;
   if (len < 5)
     return parse_uint32 (len, data);
-  uint64_t rv = ((data[0] & 0x7f))
+  rv = ((data[0] & 0x7f))
               | ((data[1] & 0x7f)<<7)
               | ((data[2] & 0x7f)<<14)
               | ((data[3] & 0x7f)<<21);
@@ -1585,7 +1587,7 @@ protobuf_c_message_unpack         (const ProtobufCMessageDescriptor *desc,
           goto error_cleanup_during_scan;
         }
       /* XXX: consider optimizing for field[1].id == tag, if field[1] exists! */
-      if (last_field->id != tag)
+      if (last_field == NULL || last_field->id != tag)
         {
           /* lookup field */
           int field_index = int_range_lookup (desc->n_field_ranges,
