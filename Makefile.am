@@ -1,5 +1,7 @@
 SUBDIRS = src
 
+ACLOCAL_AMFLAGS = -I m4
+
 EXTRA_DIST = scripts pkgwriteinfo.in
 
 pkgconfigdir = $(libdir)/pkgconfig
