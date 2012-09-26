@@ -20,42 +20,11 @@ AC_ARG_ENABLE(protoc, [  --disable-protoc    Suppress build of protoc_c],
               fi)
 AM_CONDITIONAL(BUILD_PROTOC_C, test $BUILD_PROTOC_C = 1)
 
-# --- Check for the protobuf library. ---
-if test $BUILD_PROTOC_C = 1; then
-  AC_LANG_PUSH([C++])
-  AC_CHECK_HEADER(google/protobuf/stubs/common.h,,
-		  [AC_MSG_ERROR([
-  ERROR: protobuf headers are required.
+AX_PROTOBUF
 
-  You must either install protobuf from google,
-  or if you have it installed in a custom location
-  you must add '-Iincludedir' to CXXFLAGS
-  and '-Llibdir' to LDFLAGS.
-
-  If you did not specify a prefix when installing
-  protobuf, try 
-    './configure CXXFLAGS=-I/usr/local/include LDFLAGS=-L/usr/local/lib'
-  In some 64-bit environments, try LDFLAGS=-L/usr/local/lib64.
-  ])])
-  pbc_savelibs="$LIBS"
-  LIBS="$LIBS -lprotoc -lprotobuf -lpthread"
-  AC_TRY_LINK([#include <google/protobuf/compiler/command_line_interface.h>],
-	      [google::protobuf::compiler::CommandLineInterface cli;],
-	      [],
-	      [AC_MSG_ERROR([
-  ERROR:
-  protobuf test program failed to link:
-  perhaps you need to add -Llibdir to your LDFLAGS.])])
-  LIBS="$pbc_savelibs"
-  AC_LANG_POP()
-
-  dnl We need $PROTOC around for the test code generation.
-  dnl This is merely needed for c++ packed-data comparison.
-  if test "x$PROTOC" = x; then
-    echo "ERROR: missing google's protoc program; adjust \$PATH (or use --disable-protoc)" 1>&2
-    exit 1
-  fi
-fi
+AC_SUBST([PROTOBUF_LIBS])
+AC_SUBST([PROTOBUF_INCLUDES])
+AC_SUBST([PROTOBUF_COMPILER])
 
 dnl  ------ define IS_LITTLE_ENDIAN ------
 # We try to use, where possible the headers <endian.h>, <mach/endian.h>,

@@ -16,8 +16,9 @@ google/protobuf/compiler/c/c_generator.cc \
 google/protobuf/compiler/c/c_message_field.cc \
 google/protobuf/compiler/c/main.cc \
 google/protobuf/compiler/c/c_bytes_field.cc
+protoc_c_CXXFLAGS = $(PROTOBUF_INCLUDES)
 protoc_c_LDADD = \
--lprotoc -lprotobuf -lpthread
+$(PROTOBUF_LIBS) -lprotoc -lpthread
 endif
 
 lib_LTLIBRARIES = libprotobuf-c.la
