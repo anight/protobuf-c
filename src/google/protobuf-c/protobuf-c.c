@@ -144,10 +144,9 @@ ProtobufCAllocator protobuf_c_default_allocator =
 {
   system_alloc,
   system_free,
-  NULL,         /* allocator_data */
   NULL,         /* tmp_alloc */
-  NULL,         /* alloc_unaligned */
-  NULL,         /* unpack_error_handler: use default */
+  8192,
+  NULL          /* allocator_data */
 };
 
 /* Users should NOT modify this structure,
@@ -158,10 +157,9 @@ ProtobufCAllocator protobuf_c_system_allocator =
 {
   system_alloc,
   system_free,
-  NULL,         /* allocator_data */
   NULL,         /* tmp_alloc */
-  NULL,         /* alloc_unaligned */
-  NULL,         /* unpack_error_handler: use default */
+  8192,
+  NULL          /* allocator_data */
 };
 
 
