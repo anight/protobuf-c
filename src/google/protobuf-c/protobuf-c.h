@@ -239,9 +239,13 @@ struct _ProtobufCFieldDescriptor
   unsigned offset;
   const void *descriptor;   /* for MESSAGE and ENUM types */
   const void *default_value;   /* or NULL if no default-value */
-
-  void *reserved1;
-  void *reserved2;
+  union {
+    struct {
+      void *reserved1;
+      void *reserved2;
+    };
+    unsigned deprecated:1;
+  };
 };
 /* ProtobufCMessageDescriptor: description of a message.
  *

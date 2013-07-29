@@ -64,29 +64,31 @@ void FieldGenerator::GenerateDescriptorInitializerGeneric(io::Printer* printer,
 
   printer->Print(variables,
     "{\n"
-    "  \"$proto_name$\",\n"
-    "  $value$,\n"
-    "  PROTOBUF_C_LABEL_$LABEL$,\n"
-    "  PROTOBUF_C_TYPE_$TYPE$,\n");
+    "  .name              = \"$proto_name$\",\n"
+    "  .id                = $value$,\n"
+    "  .label             = PROTOBUF_C_LABEL_$LABEL$,\n"
+    "  .type              = PROTOBUF_C_TYPE_$TYPE$,\n");
   switch (descriptor_->label()) {
     case FieldDescriptor::LABEL_REQUIRED:
-      printer->Print(variables, "  0,   /* quantifier_offset */\n");
+      printer->Print(variables, "  .quantifier_offset = 0,\n");
       break;
     case FieldDescriptor::LABEL_OPTIONAL:
       if (optional_uses_has) {
-	printer->Print(variables, "  PROTOBUF_C_OFFSETOF($classname$, has_$name$),\n");
+        printer->Print(variables, "  .quantifier_offset = PROTOBUF_C_OFFSETOF($classname$, has_$name$),\n");
       } else {
-	printer->Print(variables, "  0,   /* quantifier_offset */\n");
+        printer->Print(variables, "  .quantifier_offset = 0,\n");
       }
       break;
     case FieldDescriptor::LABEL_REPEATED:
-      printer->Print(variables, "  PROTOBUF_C_OFFSETOF($classname$, n_$name$),\n");
+      printer->Print(variables, "  .quantifier_offset = PROTOBUF_C_OFFSETOF($classname$, n_$name$),\n");
       break;
   }
-  printer->Print(variables, "  PROTOBUF_C_OFFSETOF($classname$, $name$),\n");
-  printer->Print(variables, "  $descriptor_addr$,\n");
-  printer->Print(variables, "  $default_value$,\n");
-  printer->Print(variables, "  NULL,NULL    /* reserved1, reserved2 */\n");
+  printer->Print(variables, "  .offset            = PROTOBUF_C_OFFSETOF($classname$, $name$),\n");
+  printer->Print(variables, "  .descriptor        = $descriptor_addr$,\n");
+  printer->Print(variables, "  .default_value     = $default_value$,\n");
+  if (descriptor_->options().deprecated()) {
+    printer->Print(variables, "  .deprecated        = 1,\n");
+  }
   printer->Print("},\n");
 }
 
