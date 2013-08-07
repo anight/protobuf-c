@@ -87,7 +87,7 @@ void FieldGenerator::GenerateDescriptorInitializerGeneric(io::Printer* printer,
   printer->Print(variables, "  .descriptor        = $descriptor_addr$,\n");
   printer->Print(variables, "  .default_value     = $default_value$,\n");
   if (descriptor_->options().deprecated()) {
-    printer->Print(variables, "  .deprecated        = 1,\n");
+    printer->Print(variables, "  { .deprecated        = 1 },\n");
   }
   printer->Print("},\n");
 }
