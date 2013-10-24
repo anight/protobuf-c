@@ -142,11 +142,10 @@ static void system_free (void *allocator_data, void *data)
    this allocator is still used for packing nested messages. */
 ProtobufCAllocator protobuf_c_default_allocator =
 {
-  system_alloc,
-  system_free,
-  NULL,         /* tmp_alloc */
-  8192,
-  NULL          /* allocator_data */
+  .alloc = system_alloc,
+  .free = system_free,
+  .tmp_alloc = NULL,
+  .allocator_data = NULL
 };
 
 /* Users should NOT modify this structure,
@@ -155,11 +154,10 @@ ProtobufCAllocator protobuf_c_default_allocator =
    please modify protobuf_c_default_allocator instead. */
 ProtobufCAllocator protobuf_c_system_allocator =
 {
-  system_alloc,
-  system_free,
-  NULL,         /* tmp_alloc */
-  8192,
-  NULL          /* allocator_data */
+  .alloc = system_alloc,
+  .free = system_free,
+  .tmp_alloc = NULL,
+  .allocator_data = NULL
 };
 
 
