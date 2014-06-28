@@ -168,7 +168,7 @@ do_free(ProtobufCAllocator *allocator, void *data)
  * allocator used if NULL is passed as the ProtobufCAllocator to an exported
  * function.
  */
-static ProtobufCAllocator protobuf_c__allocator = {
+ProtobufCAllocator protobuf_c_default_allocator = {
 	.alloc = &system_alloc,
 	.free = &system_free,
 	.allocator_data = NULL,
@@ -189,7 +189,7 @@ protobuf_c_buffer_simple_append(ProtobufCBuffer *buffer,
 		uint8_t *new_data;
 
 		if (allocator == NULL)
-			allocator = &protobuf_c__allocator;
+			allocator = &protobuf_c_default_allocator;
 		while (new_alloced < new_len)
 			new_alloced += new_alloced;
 		new_data = do_alloc(allocator, new_alloced);
@@ -2670,6 +2670,9 @@ protobuf_c_message_unpack(const ProtobufCMessageDescriptor *desc,
 			  ProtobufCAllocator *allocator,
 			  size_t len, const uint8_t *data)
 {
+	if (desc->message_unpack != NULL)
+		return desc->message_unpack(allocator, len, data);
+
 	ProtobufCMessage *rv;
 	size_t rem = len;
 	const uint8_t *at = data;
@@ -2699,7 +2702,7 @@ protobuf_c_message_unpack(const ProtobufCMessageDescriptor *desc,
 	ASSERT_IS_MESSAGE_DESCRIPTOR(desc);
 
 	if (allocator == NULL)
-		allocator = &protobuf_c__allocator;
+		allocator = &protobuf_c_default_allocator;
 
 	rv = do_alloc(allocator, desc->sizeof_message);
 	if (!rv)
@@ -2967,7 +2970,7 @@ protobuf_c_message_free_unpacked(ProtobufCMessage *message,
 
 	ASSERT_IS_MESSAGE(message);
 	if (allocator == NULL)
-		allocator = &protobuf_c__allocator;
+		allocator = &protobuf_c_default_allocator;
 	message->descriptor = NULL;
 	for (f = 0; f < desc->n_fields; f++) {
 		if (desc->fields[f].label == PROTOBUF_C_LABEL_REPEATED) {

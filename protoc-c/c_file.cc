@@ -119,7 +119,7 @@ FileGenerator::~FileGenerator() {}
 void FileGenerator::GenerateHeader(io::Printer* printer) {
   string filename_identifier = FilenameIdentifier(file_->name());
 
-  static const int min_header_version = 1000000;
+  static const int min_header_version = 2000000;
 
   // Generate top of header.
   printer->Print(
@@ -182,7 +182,7 @@ void FileGenerator::GenerateHeader(io::Printer* printer) {
   }
 
   for (int i = 0; i < file_->message_type_count(); i++) {
-    message_generators_[i]->GenerateHelperFunctionDeclarations(printer, false);
+    message_generators_[i]->GenerateHelperFunctionDeclarations(printer);
   }
 
   printer->Print("/* --- per-message closures --- */\n\n");
@@ -229,7 +229,13 @@ void FileGenerator::GenerateSource(io::Printer* printer) {
     "#define PROTOBUF_C__NO_DEPRECATED\n"
     "#endif\n"
     "\n"
-    "#include \"$basename$.pb-c.h\"\n",
+    "#define PROTOBUF_C__WRONG_MESSAGE       -1\n"
+    "#define PROTOBUF_C__NOT_ENOUGH_MEMORY   -2\n"
+    "\n"
+    "#include <string.h>\n"
+    "#include \"$basename$.pb-c.h\"\n"
+    "\n"
+    "// @@protoc_insertion_point(readers)\n",
     "filename", file_->name(),
     "basename", StripProto(file_->name()));
 
@@ -257,7 +263,7 @@ void FileGenerator::GenerateSource(io::Printer* printer) {
 #endif
 
   for (int i = 0; i < file_->message_type_count(); i++) {
-    message_generators_[i]->GenerateHelperFunctionDefinitions(printer, false);
+    message_generators_[i]->GenerateHelperFunctionDefinitions(printer);
   }
   for (int i = 0; i < file_->message_type_count(); i++) {
     message_generators_[i]->GenerateMessageDescriptor(printer);

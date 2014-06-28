@@ -1,0 +1,891 @@
+#!/usr/bin/env python
+"""
+Copyright (C) 2014 Andrei Nigmatulin
+Copyright (C) 2012 Roman Lomonosov
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+ 
+THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.
+"""
+
+VERSION = "1.4"
+
+
+MESSAGE_SOURCE_TEMPLATE = """
+int ${message_type}__unpack_merge
+                     (${MessageType}* object,
+                      const uint8_t* buffer, size_t buffer_size,
+                      ProtobufCAllocator *pba) {
+	const uint8_t* buffer_end = buffer+buffer_size;
+	${additional_variables}
+	${required_fields_init}
+
+	while (buffer < buffer_end) {
+		${switch_tree}
+	}
+
+	${required_fields_check}
+	return 0;
+}
+"""
+
+SOURCE = """
+static inline void* memory_allocate(const size_t size,
+			ProtobufCAllocator *pba) {
+	return pba->alloc(pba->allocator_data, size);
+}
+
+static inline void* memory_allocate_copy(const size_t size,
+			ProtobufCAllocator *pba,
+			const uint8_t* src, const size_t src_size) {
+	if (size < src_size) return NULL;
+	void *ret = pba->alloc(pba->allocator_data, size);
+	if (ret) {
+		memcpy(ret, src, src_size);
+	}
+	return ret;
+}
+
+${readers}
+
+static inline const uint8_t* skip_varint(const uint8_t* buffer, const uint8_t* buffer_end) {
+	while (1) {
+		if ((*buffer++)>>7==0) break;
+		if (buffer >= buffer_end) return NULL;
+	}
+	return buffer;
+}
+
+static inline const uint8_t* skip_fixed32(const uint8_t* buffer, const uint8_t* buffer_end) {
+	buffer+=4;
+	if (buffer_end >= buffer)
+		return buffer;
+	return NULL;
+}
+
+static inline const uint8_t* skip_fixed64(const uint8_t* buffer, const uint8_t* buffer_end) {
+	buffer+=8;
+	if (buffer_end >= buffer)
+		return buffer;
+	return NULL;
+}
+
+static inline const uint8_t* skip_bytes(const uint8_t* buffer, const uint8_t* buffer_end) {
+	uint32_t v = 0;
+	if ((buffer = read_uint32(&v, buffer, buffer_end)) == NULL) return NULL;
+	buffer += v;
+	if (buffer_end >= buffer)
+		return buffer;
+	return NULL;
+}
+
+static inline const uint8_t* skip_field(const uint8_t* buffer, const uint8_t* buffer_end) {
+	uint8_t type = (*buffer)&0x7;
+
+	if ((buffer=skip_varint(buffer, buffer_end)) == NULL) return NULL;
+
+	switch (type) {
+		case 0: //varint
+			if ((buffer=skip_varint(buffer, buffer_end)) == NULL) return NULL;
+			break;
+		case 1: //fixed64
+			if ((buffer=skip_fixed64(buffer, buffer_end)) == NULL) return NULL;
+			break;
+		case 2: //bytes
+			if ((buffer=skip_bytes(buffer, buffer_end)) == NULL) return NULL;
+			break;
+		case 5: //fixed32
+			if ((buffer=skip_fixed32(buffer, buffer_end)) == NULL) return NULL;
+			break;
+		default:
+			return NULL;
+			break;
+	}
+	return buffer;
+}
+
+"""
+
+LABEL_TO_NAME_MAP = {
+	1: 'optional',
+	2: 'required',
+	3: 'repeated',
+}
+
+TYPE_ID_TO_NAME_MAP = { # type attribute (from google's _pb2.py file) to type name map
+	1: 'double',
+	2: 'float',
+	3: 'int64',
+	4: 'uint64',
+	5: 'int32',
+	6: 'fixed64',
+	7: 'fixed32',
+	8: 'bool',
+	9: 'string',
+	11: 'submessage',
+	12: 'bytes',
+	13: 'uint32',
+	14: 'enum',
+	15: 'sfixed32',
+	16: 'sfixed64',
+	17: 'sint32',
+	18: 'sint64',
+}
+
+FIELD_TYPE_MAP = {} # maps field type name to wrapper class. filled by "field_type" decorator
+
+#####################
+# tempalates and helpers
+#####################
+
+def render_value(key, data):
+	p = key.find(".")
+	if p >= 0:
+		subkey = key[p+1:]
+		key = key[:p]
+	else:
+		subkey = None
+
+	found = False
+	value = None
+
+	if not found:
+		try:
+			value = data[key]
+			found = True
+		except (KeyError,TypeError):
+			pass
+
+	if not found:
+		try:
+			value = data[int(key)]
+			found = True
+		except (KeyError,ValueError,IndexError):
+			pass
+
+	if not found:
+		value = getattr(data, key, None)
+		if not value is None:
+			found = True
+
+	if found:
+		if callable(value):
+			value = value()
+
+	if not found:
+		raise ValueError("key %s not found in %s" % (str(key), str(data)))
+
+	if subkey:
+		return render_value(subkey, value)
+	return str(value)
+
+def render(template,data):
+	out = []
+	for line in template.split("\n"):
+		p1 = line.find("${")
+		has_var = False
+		while p1 >= 0:
+			has_var = True
+			p2 = line.find("}",p1)
+			if p2 < 0: raise ValueError("Variable not closed: %s" % str([line,]))
+			key = line[p1+2:p2]
+			if line.strip() == ("${%s}" % key):
+				t = []
+				for l in render_value(key, data).split("\n"):
+					t.append(line[:p1]+l)
+				line = "\n".join(t)
+			else:
+				line = line[:p1]+render_value(key, data)+line[p2+1:]
+			p1 = line.find("${")
+		if has_var and not line.strip():
+			continue
+		out.append(line)
+	out = "\n".join(out).split("\n")
+	# fix intendation
+	min_intendation = None
+	for l in out:
+		if not l.strip(): continue
+		p = l.find(l.strip())
+		if min_intendation is None or p < min_intendation:
+			min_intendation = p
+	if not min_intendation:
+		return "\n".join(out)
+	res = []
+	for l in out:
+		if not l.strip():
+			res.append("")
+			continue
+		res.append(l[min_intendation:])
+
+	# skip empty lines on start
+	while res and not res[0].split():
+		res = res[1:]
+	# and at finish
+	while res and not res[-1].split():
+		res = res[:-1]
+	return "\n".join(res)
+
+def to_underlines(TypeName):
+	""" TypeName -> type_name """
+	type_name = ""
+	for i,c in enumerate(TypeName):
+		if c.lower() != c and c.upper() == c and i != 0 and TypeName[i-1].upper() != TypeName[i-1]:
+			type_name += "_"
+		type_name += c.lower()
+	return type_name
+
+def to_TypeName(s):
+	r = ''
+	prev_not_letter = True
+	for c in s:
+		if (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z'):
+			if prev_not_letter:
+				r += c.upper()
+			else:
+				r += c
+			prev_not_letter = False
+		elif c == '.':
+			r += '__'
+			prev_not_letter = True
+		elif c == '_':
+			prev_not_letter = True
+		else:
+			r += c
+	return r
+
+#####################
+# <fields>
+#####################
+
+def field(C):
+	type_name = C.__name__[1:]
+	if not type_name in TYPE_ID_TO_NAME_MAP.values():
+		raise ValueError("unknown type %s" % type_name)
+	if type_name in FIELD_TYPE_MAP:
+		raise ValueError("field %s already implemented" % type_name)
+	FIELD_TYPE_MAP[type_name] = C
+	C.type_name = type_name
+	return C
+
+def get_field(protobuf_field):
+	C = FIELD_TYPE_MAP[TYPE_ID_TO_NAME_MAP[protobuf_field.type]]
+	return C(protobuf_field)
+
+class _base(object):
+	"""
+	@todo: Only repeated fields of primitive numeric types
+	(types which use the varint, 32-bit, or 64-bit wire types) can be declared "packed".
+	"""
+	repeated_init_size = 8
+	read_convert_type = ""
+
+	def __init__(self, protobuf_field):
+		self._field = protobuf_field
+
+	def render(self, data):
+		if type(data) is list:
+			return render("\n".join([s for s in data if s]),self)
+		return render(data, self)
+
+	def is_optional(self):
+		return bool(LABEL_TO_NAME_MAP[self._field.label] == 'optional')
+
+	def is_repeated(self):
+		return bool(LABEL_TO_NAME_MAP[self._field.label] == 'repeated')
+
+	def is_required(self):
+		return bool(LABEL_TO_NAME_MAP[self._field.label] == 'required')
+
+	def _tag(self, wire_type):
+		b = []
+		v = (self._field.number << 3) + wire_type
+		while True:
+			t = v & 0x7f
+			v = v>>7
+			if v > 0:
+				b.append(t|0x80)
+			else:
+				b.append(t)
+				break
+		return b
+
+	def tag(self):
+		return self._tag(self.wire_type)
+
+	def tag_packed(self):
+		return self._tag(2)
+
+	def is_packed(self):
+		return self.is_repeated() and self.wire_type in (0,1,5)
+
+	def cases(self):
+		if self.is_packed():
+			return [
+				(self.tag(), self.read()),
+				(self.tag_packed(), self.read_packed()),
+			]
+		return [
+				(self.tag(), self.read()),
+		]
+
+	def name(self):
+		return self._field.name.lower()
+
+	def repeated_check_resize(self):
+		if not self.is_repeated():
+			return ""
+		return self.render("""
+			if ( ((object->n_${name}-1) & (object->n_${name})) == 0) {
+				if (object->n_${name} == 0) {
+					if ((object->${name} = memory_allocate(${repeated_init_size}*sizeof(${c_type}), pba)) == NULL) return PROTOBUF_C__NOT_ENOUGH_MEMORY;
+				} else if (object->n_${name} >= ${repeated_init_size}) {
+					void *new_ptr = memory_allocate_copy(2*(object->n_${name})*sizeof(${c_type}), pba,
+						(uint8_t*)object->${name}, (object->n_${name})*sizeof(${c_type}));
+					if (!new_ptr) return PROTOBUF_C__NOT_ENOUGH_MEMORY;
+					object->${name} = new_ptr;
+				}
+			}
+		""")
+
+	def repeated_increment_count(self):
+		if not self.is_repeated():
+			return ""
+		return "object->n_${name}++;"
+
+	def has_value_set_true(self):
+		if self.is_optional():
+			return "object->has_${name} = 1;"
+		return ""
+
+	def has_required_field(self):
+		if hasattr(self, '_required_field_id'):
+			return "required_fields[%u] |= (1UL << %u);" % (self._required_field_id / 64, self._required_field_id % 64)
+		return ""
+
+	def read_function(self):
+		return "read_${type_name}"
+
+	def read(self):
+		if self.is_repeated():
+			return self.render("""
+				${repeated_check_resize}
+				if ((buffer=${read_function}(${read_convert_type}&object->${name}[object->n_${name}], buffer, buffer_end)) == NULL) return PROTOBUF_C__WRONG_MESSAGE;
+				${repeated_increment_count}
+			""")
+		return self.render("""
+			if ((buffer=${read_function}(${read_convert_type}&(object->${name}), buffer, buffer_end)) == NULL) return PROTOBUF_C__WRONG_MESSAGE;
+			${has_value_set_true}
+			${has_required_field}
+		""")
+
+	def read_packed(self):
+		return self.render("""
+			if ((buffer=read_int32(&t, buffer, buffer_end)) == NULL) return PROTOBUF_C__WRONG_MESSAGE;
+			tmp_buffer_pointer = buffer+t;
+			if (tmp_buffer_pointer > buffer_end) return PROTOBUF_C__WRONG_MESSAGE;
+			while (buffer < tmp_buffer_pointer) {
+				${read}
+			}
+			if (buffer > tmp_buffer_pointer) return PROTOBUF_C__WRONG_MESSAGE;
+		""")
+
+class _varint(_base):
+	wire_type = 0
+	c_type = "uint64_t"
+	tmp_type = "uint64_t"
+	tmp_cast = "tmp"
+
+	def reader(self):
+		return self.render("""
+			static inline const uint8_t* ${read_function}(${c_type}* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+				uint8_t i = 0;
+				${tmp_type} tmp = 0;
+				while (1) {
+					if (buffer>=buffer_end) return NULL;
+					tmp |= ((${tmp_type})((*buffer)&0x7f))<<((i++)*7);
+					if ((*buffer++)>>7) continue;
+					break;
+				}
+				*v = ${tmp_cast};
+				return buffer;
+			}
+		""")
+
+@field
+class _int32(_varint):
+	c_type = "int32_t"
+
+@field
+class _uint32(_varint):
+	c_type = "uint32_t"
+	tmp_type = "uint32_t" #@todo: check speed
+
+@field
+class _sint32(_varint):
+	c_type = "int32_t"
+	tmp_type = "uint32_t" #@todo: check speed
+	tmp_cast = "((tmp >> 1) ^ (-(tmp & 1)))"
+
+@field
+class _int64(_varint):
+	c_type = "int64_t"
+
+@field
+class _uint64(_varint):
+	c_type = "uint64_t"
+
+@field
+class _sint64(_varint):
+	c_type = "int64_t"
+	tmp_cast = "((tmp >> 1) ^ (-(tmp & 1)))"
+
+@field
+class _bool(_varint):
+	c_type = "protobuf_c_boolean"
+	tmp_cast = "(protobuf_c_boolean)tmp"
+
+@field
+class _enum(_varint):
+	c_type = "int"
+	read_convert_type = "(int *)"
+
+@field
+class _fixed32(_base):
+	wire_type = 5
+	c_type = "uint32_t"
+	read_function = "read_fixed32"
+
+	def reader(self):
+		return self.render("""
+			#ifndef DECLARED_S_ENDIANLESS
+			#define DECLARED_S_ENDIANLESS 1
+			static const int s_endianness = 1;
+			#endif
+
+			static inline const uint8_t* read_fixed32(uint32_t* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+				if (buffer+4 > buffer_end) return NULL;
+				if (1==*(char*)&(s_endianness)) { // runtime little-endian test 
+					*v = *(uint32_t*)buffer;
+				} else {
+					*v = ((uint32_t)buffer[0]) | (((uint32_t)buffer[1]) << 8) | (((uint32_t)buffer[2]) << 16) | (((uint32_t)buffer[3]) << 24);
+				}
+				return buffer+4;
+			}
+		""")
+
+@field
+class _sfixed32(_fixed32):
+	c_type = "int32_t"
+	read_convert_type = "(uint32_t *)"
+
+@field
+class _float(_fixed32):
+	c_type = "float"
+	read_convert_type = "(uint32_t *)"
+
+@field
+class _fixed64(_base):
+	wire_type = 1
+	c_type = "uint64_t"
+	read_function = "read_fixed64"
+
+	def reader(self):
+		return self.render("""
+			#ifndef DECLARED_S_ENDIANLESS
+			#define DECLARED_S_ENDIANLESS 1
+			static const int s_endianness = 1;
+			#endif
+
+			static inline const uint8_t* read_fixed64(uint64_t* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+				if (buffer+8 > buffer_end) return NULL;
+				if (1==*(char*)&(s_endianness)) { // runtime little-endian test
+					*v = *(uint64_t*)buffer;
+				} else {
+					*v = ((uint64_t)buffer[0]) | (((uint64_t)buffer[1]) << 8) \
+						 | (((uint64_t)buffer[2]) << 16) | (((uint64_t)buffer[3]) << 24) \
+						 | (((uint64_t)buffer[4]) << 32) | (((uint64_t)buffer[5]) << 40) \
+						 | (((uint64_t)buffer[6]) << 48) | (((uint64_t)buffer[7]) << 56);
+				}
+				return buffer+8;
+			}
+		""")
+
+@field
+class _sfixed64(_fixed64):
+	c_type = "int64_t"
+	read_convert_type = "(uint64_t *)"
+
+@field
+class _double(_fixed64):
+	c_type = "double"
+	read_convert_type = "(uint64_t *)"
+
+@field
+class _string(_base):
+	wire_type = 2
+	c_type = "char*"
+
+	def read_to_field(self):
+		if self.is_repeated():
+			return "object->${name}[object->n_${name}]"
+		else:
+			return "object->${name}"
+
+	def read(self):
+		return self.render("""
+			${repeated_check_resize}
+			if ((buffer=read_uint32(&length, buffer, buffer_end)) == NULL) return PROTOBUF_C__WRONG_MESSAGE;
+			if (buffer + length > buffer_end) return PROTOBUF_C__WRONG_MESSAGE;
+			if ((${read_to_field} = memory_allocate_copy(length+1,
+					pba, buffer, length)) == NULL) return PROTOBUF_C__NOT_ENOUGH_MEMORY;
+			${read_to_field}[length] = 0;
+			buffer += length;
+			${repeated_increment_count}
+			${has_required_field}
+		""")
+
+@field
+class _submessage(_base):
+	"""
+	@todo:For embedded message fields, the parser merges multiple instances
+	of the same field, as if with the Message::MergeFrom method -
+	that is, all singular scalar fields in the latter instance replace those in the former,
+	singular embedded messages are merged, and repeated fields are concatenated.
+	"""
+	wire_type = 2
+
+	def field_full_name(self):
+		if self._field.type_name.startswith('.'):
+			return self._field.type_name[1:]
+		return self._message.full_name + '.' + self._field.type_name
+
+	def submessage_type(self):
+		return to_TypeName(self.field_full_name())
+
+	def c_type(self):
+		return "%s*" % self.submessage_type()
+
+	def submessage_init(self):
+		return to_underlines(self.field_full_name()).upper().replace(".","__")+"__INIT"
+
+	def submessage_merge(self):
+		return to_underlines(self.field_full_name()).lower().replace(".","__")+"__unpack_merge"
+
+	def read_to_field(self):
+		if self.is_repeated():
+			return "object->${name}[object->n_${name}]"
+		else:
+			return "object->${name}"
+
+	def submessage_tmp(self):
+		return self.render("""
+					static ${submessage_type} submessage_init = ${submessage_init};
+					${submessage_type} *submessage_tmp = memory_allocate_copy(
+							sizeof(${submessage_type}), pba,
+							(uint8_t *) &submessage_init, sizeof(${submessage_type}));
+					if (!submessage_tmp) {
+						return PROTOBUF_C__NOT_ENOUGH_MEMORY;
+					}
+		""")
+
+	def read(self):
+		ret = """
+				${repeated_check_resize}
+				if ((buffer=read_uint32(&length, buffer, buffer_end)) == NULL) return PROTOBUF_C__WRONG_MESSAGE;
+				if (buffer + length > buffer_end) return PROTOBUF_C__WRONG_MESSAGE;
+				buffer += length;
+		"""
+		if self.is_repeated():
+			ret+="""
+				{
+					${submessage_tmp}
+					t = ${submessage_merge}(submessage_tmp, buffer-length, length, pba);
+					if (t < 0) return t;
+					${read_to_field} = submessage_tmp;
+				}
+			"""
+		else: # merge support
+			ret+="""
+				if (${read_to_field} == NULL) {
+					${submessage_tmp}
+					t = ${submessage_merge}(submessage_tmp, buffer-length, length, pba);
+					if (t < 0) return t;
+					${read_to_field} = submessage_tmp;
+				} else {
+					t = ${submessage_merge}(${read_to_field}, buffer-length, length, pba);
+					if (t < 0) return t;
+				}
+			"""
+
+		ret+= """
+				${repeated_increment_count}
+				${has_required_field}
+		"""
+
+		return self.render(ret)
+
+
+@field
+class _bytes(_base):
+	wire_type = 2
+	c_type = "ProtobufCBinaryData"
+
+	def read_to_field(self):
+		if self.is_repeated():
+			return "(*(object->${name}+object->n_${name}))"
+		else:
+			return "object->${name}"
+
+	def read(self):
+		return self.render("""
+			${repeated_check_resize}
+			if ((buffer=read_uint32(&length, buffer, buffer_end)) == NULL) return PROTOBUF_C__WRONG_MESSAGE;
+			if (buffer + length > buffer_end) return PROTOBUF_C__WRONG_MESSAGE;
+			if ((${read_to_field}.data = memory_allocate_copy(length,
+					pba, buffer, length)) == NULL) return PROTOBUF_C__NOT_ENOUGH_MEMORY;
+			${read_to_field}.len = length;
+			buffer += length;
+			${repeated_increment_count}
+			${has_value_set_true}
+			${has_required_field}
+		""")
+
+#####################
+# </fields>
+#####################
+
+
+class Message(object):
+	def __init__(self, full_name, descriptor):
+		self.descriptor = descriptor
+		self.full_name = full_name
+		self.fields = []
+		self.n_required_fields = 0
+		for field in descriptor.field:
+			f = get_field(field)
+			setattr(f, '_message', self)
+			if f.is_required() and not field.HasField('default_value'):
+				setattr(f, '_required_field_id', self.n_required_fields)
+				self.n_required_fields += 1
+			self.fields.append(f)
+
+	def render(self, msg):
+		return render(msg, self)
+
+	def generate_tree(self):
+		tree = {}
+		for i, field_info in enumerate(self.fields):
+			for tag, read_source in field_info.cases():
+				f = tree
+				for b in tag[:-1]:
+					if not b in f:
+						f[b] = {}
+					f = f[b]
+				b = tag[-1]
+				if not b in f:
+					f[b] = read_source
+		return tree
+
+	def MessageType(self):
+		return to_TypeName(self.full_name)
+
+	def message_type(self):
+		return to_underlines(self.full_name).lower().replace(".","__")
+
+	def MESSAGE_TYPE(self):
+		return to_underlines(self.full_name).upper().replace(".","__")
+
+	def has_repeated_fields(self):
+		for f in self.fields:
+			if f.is_repeated():
+				return True
+		return False
+
+	def has_packed_fields(self):
+		for f in self.fields:
+			if f.is_packed():
+				return True
+		return False
+
+	def has_field_type(self, types):
+		for f in self.fields:
+			if f.type_name in types:
+				return True
+		return False
+
+	def additional_variables(self):
+		out = []
+		if self.has_packed_fields():
+			out.append("const uint8_t* tmp_buffer_pointer = NULL;")
+		if self.has_packed_fields() or self.has_field_type(('submessage',)):
+			out.append("int32_t t = 0;")
+		if self.has_field_type(('string', 'submessage', 'bytes')):
+			out.append("uint32_t length = 0;")
+		if len(self.fields) == 0:
+			out.append("(void) object;")
+		return self.render("\n".join(out))
+
+	def unpack_merge(self):
+		return self.render(MESSAGE_SOURCE_TEMPLATE)
+
+	def readers(self):
+		r = []
+		for f in self.fields:
+			try:
+				r.append(f.reader())
+			except AttributeError:
+				pass
+		return r
+
+	def switch_tree(self, data=None, level=0):
+		t = [
+			"if (buffer + ${level} >= buffer_end) return PROTOBUF_C__WRONG_MESSAGE;" if level > 0 else "",
+			"switch(buffer[${level}]) {",
+			"	${cases}",
+			"	default:",
+			"		if ((buffer=skip_field(buffer, buffer_end)) == NULL) return PROTOBUF_C__WRONG_MESSAGE;",
+			"		continue;",
+			"}",
+		]
+
+		t = "\n".join([s for s in t if s])
+
+		if data is None:
+			data = self.generate_tree()
+
+		cases = []
+		for byte, subdata in data.items():
+			c = "\n".join([s for s in [
+				"case ${byte}:",
+				"	buffer += ${level+1};" if type(subdata) is not dict else "",
+				"	${body}",
+				"	continue;",
+			] if s])
+			c_data = {'byte': hex(byte), 'level+1': level+1}
+			if type(subdata) is dict:
+				c_data['body'] = self.switch_tree(data=subdata, level=level+1)
+			else:
+				c_data['body'] = subdata
+			cases.append(render(c, c_data))
+
+		out = render(t, {'level':level, 'cases': "\n".join(cases)})
+		return out
+
+	def required_fields_words(self):
+		return (self.n_required_fields + 63) / 64
+
+	def required_fields_all_set(self):
+		n = self.n_required_fields
+		word_no = 0
+		words = []
+		while n > 0:
+			bits = min(n, 64)
+			words.append("required_fields[%u] == 0x%xUL" % (word_no, (1 << bits) - 1))
+			n -= bits
+		return " && ".join(words)
+
+	def required_fields_init(self):
+		if self.n_required_fields == 0:
+			return ""
+		return self.render("""uint64_t required_fields[${required_fields_words}] = {0};""")
+
+	def required_fields_check(self):
+		if self.n_required_fields == 0:
+			return ""
+		return """if (!(${required_fields_all_set})) return PROTOBUF_C__WRONG_MESSAGE;"""
+
+class Module(object):
+	def __init__(self, fdp):
+		self.messages = []
+		self.fdp = fdp
+		def add_messages(prefix, messages):
+			for dp in messages:
+				if len(prefix):
+					full_name = prefix + '.' + dp.name
+				else:
+					full_name = dp.name
+				self.messages.append(Message(full_name, dp))
+				add_messages(full_name, dp.nested_type)
+		add_messages(fdp.package, fdp.message_type)
+
+	def render(self, msg):
+		return render(msg, self)
+
+	def filename_proto(self):
+		return self.fdp.name
+
+	def filename_identifier(self):
+		ret = ''
+		for c in self.fdp.name:
+			if c.isalpha():
+				ret += c
+			else:
+				ret += '_%02x' % ord(c)
+		return ret
+
+	def filename(self):
+		return self.fdp.name[:-len(".proto")]
+
+	def source_filename(self):
+		return self.filename()+".pb-c.c"
+
+	def source(self):
+		return self.render(SOURCE)
+
+	def readers(self):
+		r = []
+		for message in self.messages:
+			r += message.readers()
+		# hack for force add read_uint32
+		r.append(_uint32(None).reader())
+		r.append(_int32(None).reader())
+		return "\n\n".join(sorted(list(set(r))))
+
+	def pieces(self):
+		yield "readers", self.source()
+		for message in self.messages:
+			yield message.message_type() + '__unpack_merge', message.unpack_merge()
+
+def generate(res, fdp):
+	module = Module(fdp)
+
+	for insertion_point, content in module.pieces():
+		c_file = res.file.add()
+		c_file.name = module.source_filename()
+		c_file.insertion_point = insertion_point
+		c_file.content = content.replace("\t", "  ")
+
+if __name__ == '__main__':
+	import sys
+	import google.protobuf.compiler.plugin_pb2 as plugin
+
+	req = plugin.CodeGeneratorRequest()
+	res = plugin.CodeGeneratorResponse()
+
+	req.ParseFromString(sys.stdin.read())
+
+	for fdp in req.proto_file:
+		if fdp.name not in req.file_to_generate:
+			continue
+		if not fdp.name.endswith('.proto'):
+			raise Exception("expected .proto file, got %s" % fdp.name)
+		generate(res, fdp)
+
+	print res.SerializeToString(),

@@ -4,6 +4,7 @@
 
 int main(int argc, char* argv[]) {
   google::protobuf::compiler::CommandLineInterface cli;
+  cli.AllowPlugins("protoc-c-");
 
   // Support generation of Foo code.
   google::protobuf::compiler::c::CGenerator c_generator;

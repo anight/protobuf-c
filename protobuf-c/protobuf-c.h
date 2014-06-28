@@ -349,6 +349,11 @@ typedef int protobuf_c_boolean;
 
 typedef void (*ProtobufCClosure)(const ProtobufCMessage *, void *closure_data);
 typedef void (*ProtobufCMessageInit)(ProtobufCMessage *);
+typedef size_t (*ProtobufCMessageGetPackedSize)(const ProtobufCMessage *);
+typedef size_t (*ProtobufCMessagePack)(const ProtobufCMessage *, uint8_t *out);
+typedef size_t (*ProtobufCMessagePackToBuffer)(const ProtobufCMessage *, ProtobufCBuffer *);
+typedef ProtobufCMessage *(*ProtobufCMessageUnpack)(ProtobufCAllocator *, size_t len, const uint8_t *data);
+typedef void (*ProtobufCMessageFreeUnpacked)(ProtobufCMessage *, ProtobufCAllocator *);
 typedef void (*ProtobufCServiceDestroy)(ProtobufCService *);
 
 /**
@@ -665,6 +670,21 @@ struct ProtobufCMessageDescriptor {
 	/** Message initialisation function. */
 	ProtobufCMessageInit		message_init;
 
+	/** Message get_packed_size function. */
+	ProtobufCMessageGetPackedSize	message_get_packed_size;
+
+	/** Message pack function. */
+	ProtobufCMessagePack		message_pack;
+
+	/** Message pack_to_buffer function. */
+	ProtobufCMessagePackToBuffer	message_pack_to_buffer;
+
+	/** Message unpack function. */
+	ProtobufCMessageUnpack		message_unpack;
+
+	/** Message free_unpacked function. */
+	ProtobufCMessageFreeUnpacked	message_free_unpacked;
+
 	/** Reserved for future use. */
 	void				*reserved1;
 	/** Reserved for future use. */
@@ -738,6 +758,8 @@ struct ProtobufCServiceDescriptor {
 	const unsigned			*method_indices_by_name;
 };
 
+extern ProtobufCAllocator protobuf_c_default_allocator;
+
 /**
  * Get the version of the protobuf-c library. Note that this is the version of
  * the library linked against, not the version of the headers compiled against.
@@ -769,13 +791,13 @@ protobuf_c_version_number(void);
  * The version of the protobuf-c headers, represented as an integer using the
  * same format as protobuf_c_version_number().
  */
-#define PROTOBUF_C_VERSION_NUMBER	1000000
+#define PROTOBUF_C_VERSION_NUMBER	2000000
 
 /**
  * The minimum protoc-c version which works with the current version of the
  * protobuf-c headers.
  */
-#define PROTOBUF_C_MIN_COMPILER_VERSION	1000000
+#define PROTOBUF_C_MIN_COMPILER_VERSION	2000000
 
 /**
  * Look up a `ProtobufCEnumValue` from a `ProtobufCEnumDescriptor` by name.

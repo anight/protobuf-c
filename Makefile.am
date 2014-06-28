@@ -34,7 +34,7 @@ CODE_COVERAGE_IGNORE_PATTERN = "$(abs_top_builddir)/t/*"
 # libprotobuf-c
 #
 
-LIBPROTOBUF_C_CURRENT=1
+LIBPROTOBUF_C_CURRENT=2
 LIBPROTOBUF_C_REVISION=0
 LIBPROTOBUF_C_AGE=0
 
@@ -106,6 +106,14 @@ protoc_c_protoc_c_CXXFLAGS = \
 protoc_c_protoc_c_LDADD = \
 	$(protobuf_LIBS) \
 	-lprotoc
+
+#
+# protoc-c-gen-c-fast plugin
+#
+
+scriptsdir = $(prefix)/bin
+
+scripts_SCRIPTS = scripts/protoc-c-gen-c-fast
 
 #
 # protobuf-c tests
