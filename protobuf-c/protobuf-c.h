@@ -354,6 +354,7 @@ typedef size_t (*ProtobufCMessagePack)(const ProtobufCMessage *, uint8_t *out);
 typedef size_t (*ProtobufCMessagePackToBuffer)(const ProtobufCMessage *, ProtobufCBuffer *);
 typedef ProtobufCMessage *(*ProtobufCMessageUnpack)(ProtobufCAllocator *, size_t len, const uint8_t *data);
 typedef void (*ProtobufCMessageFreeUnpacked)(ProtobufCMessage *, ProtobufCAllocator *);
+typedef protobuf_c_boolean (*ProtobufCMessageCheck)(const ProtobufCMessage *);
 typedef void (*ProtobufCServiceDestroy)(ProtobufCService *);
 
 /**
@@ -685,6 +686,9 @@ struct ProtobufCMessageDescriptor {
 	/** Message free_unpacked function. */
 	ProtobufCMessageFreeUnpacked	message_free_unpacked;
 
+	/** Message check function. */
+	ProtobufCMessageCheck		message_check;
+
 	/** Reserved for future use. */
 	void				*reserved1;
 	/** Reserved for future use. */
@@ -887,7 +891,14 @@ protobuf_c_message_descriptor_get_field(
  */
 PROTOBUF_C__API
 size_t
-protobuf_c_message_get_packed_size(const ProtobufCMessage *message);
+protobuf_c_message_get_packed_size_slow(const ProtobufCMessage *message);
+
+static inline
+size_t
+protobuf_c_message_get_packed_size(const ProtobufCMessage *message)
+{
+	return message->descriptor->message_get_packed_size(message);
+}
 
 /**
  * Serialise a message from its in-memory representation.
@@ -907,7 +918,14 @@ protobuf_c_message_get_packed_size(const ProtobufCMessage *message);
  */
 PROTOBUF_C__API
 size_t
-protobuf_c_message_pack(const ProtobufCMessage *message, uint8_t *out);
+protobuf_c_message_pack_slow(const ProtobufCMessage *message, uint8_t *out);
+
+static inline
+size_t
+protobuf_c_message_pack(const ProtobufCMessage *message, uint8_t *out)
+{
+	return message->descriptor->message_pack(message, out);
+}
 
 /**
  * Serialise a message from its in-memory representation to a virtual buffer.
@@ -924,9 +942,18 @@ protobuf_c_message_pack(const ProtobufCMessage *message, uint8_t *out);
  */
 PROTOBUF_C__API
 size_t
-protobuf_c_message_pack_to_buffer(
+protobuf_c_message_pack_to_buffer_slow(
 	const ProtobufCMessage *message,
 	ProtobufCBuffer *buffer);
+
+static inline
+size_t
+protobuf_c_message_pack_to_buffer(
+	const ProtobufCMessage *message,
+	ProtobufCBuffer *buffer)
+{
+	return message->descriptor->message_pack_to_buffer(message, buffer);
+}
 
 /**
  * Unpack a serialised message into an in-memory representation.
@@ -947,11 +974,22 @@ protobuf_c_message_pack_to_buffer(
  */
 PROTOBUF_C__API
 ProtobufCMessage *
-protobuf_c_message_unpack(
+protobuf_c_message_unpack_slow(
 	const ProtobufCMessageDescriptor *descriptor,
 	ProtobufCAllocator *allocator,
 	size_t len,
 	const uint8_t *data);
+
+static inline
+ProtobufCMessage *
+protobuf_c_message_unpack(
+	const ProtobufCMessageDescriptor *descriptor,
+	ProtobufCAllocator *allocator,
+	size_t len,
+	const uint8_t *data)
+{
+	return descriptor->message_unpack(allocator, len, data);
+}
 
 /**
  * Free an unpacked message object.
@@ -967,9 +1005,18 @@ protobuf_c_message_unpack(
  */
 PROTOBUF_C__API
 void
-protobuf_c_message_free_unpacked(
+protobuf_c_message_free_unpacked_slow(
 	ProtobufCMessage *message,
 	ProtobufCAllocator *allocator);
+
+static inline
+void
+protobuf_c_message_free_unpacked(
+	ProtobufCMessage *message,
+	ProtobufCAllocator *allocator)
+{
+	message->descriptor->message_free_unpacked(message, allocator);
+}
 
 /**
  * Check the validity of a message object.
@@ -984,7 +1031,14 @@ protobuf_c_message_free_unpacked(
  */
 PROTOBUF_C__API
 protobuf_c_boolean
-protobuf_c_message_check(const ProtobufCMessage *);
+protobuf_c_message_check_slow(const ProtobufCMessage *);
+
+static inline
+protobuf_c_boolean
+protobuf_c_message_check(const ProtobufCMessage *message)
+{
+	return message->descriptor->message_check(message);
+}
 
 /** Message initialiser. */
 #define PROTOBUF_C_MESSAGE_INIT(descriptor) { descriptor, 0, NULL }
@@ -999,9 +1053,16 @@ protobuf_c_message_check(const ProtobufCMessage *);
  */
 PROTOBUF_C__API
 void
-protobuf_c_message_init(
+protobuf_c_message_init_slow(
 	const ProtobufCMessageDescriptor *descriptor,
-	void *message);
+	ProtobufCMessage *);
+
+static inline
+void
+protobuf_c_message_init(const ProtobufCMessageDescriptor *descriptor, void *message)
+{
+	descriptor->message_init((ProtobufCMessage *) (message));
+}
 
 /**
  * Free a service.
