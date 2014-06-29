@@ -583,7 +583,7 @@ class _submessage(_base):
 		return "%s*" % self.submessage_type()
 
 	def submessage_init(self):
-		return to_underlines(self.field_full_name()).upper().replace(".","__")+"__INIT"
+		return to_underlines(self.field_full_name()).lower().replace(".","__")+"__init"
 
 	def submessage_merge(self):
 		return to_underlines(self.field_full_name()).lower().replace(".","__")+"__unpack_merge"
@@ -596,13 +596,11 @@ class _submessage(_base):
 
 	def submessage_tmp(self):
 		return self.render("""
-					static ${submessage_type} submessage_init = ${submessage_init};
-					${submessage_type} *submessage_tmp = memory_allocate_copy(
-							sizeof(${submessage_type}), pba,
-							(uint8_t *) &submessage_init, sizeof(${submessage_type}));
-					if (!submessage_tmp) {
-						return PROTOBUF_C__NOT_ENOUGH_MEMORY;
-					}
+			${submessage_type} *submessage_tmp = memory_allocate(sizeof(${submessage_type}), pba);
+			if (!submessage_tmp) {
+				return PROTOBUF_C__NOT_ENOUGH_MEMORY;
+			}
+			${submessage_init}(submessage_tmp);
 		""")
 
 	def read(self):
