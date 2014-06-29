@@ -76,6 +76,10 @@ MY_CODE_COVERAGE
 
 AC_C_BIGENDIAN
 
+# xxx: hack to force use of c-fast plugin
+AC_DEFINE_UNQUOTED([PROGRAM_PREFIX], "$prefix", [program prefix])
+AC_SUBST([PROGRAM_PREFIX])
+
 AC_OUTPUT
 AC_MSG_RESULT([
     $PACKAGE $VERSION
