@@ -28,14 +28,14 @@ SUCH DAMAGE.
 VERSION = "1.4"
 
 
-MESSAGE_SOURCE_TEMPLATE = """
+MESSAGE_GENERATED_METHODS = """
 int ${message_type}__unpack_merge
                      (${MessageType}* object,
                       const uint8_t* buffer, size_t buffer_size,
-                      ProtobufCAllocator *pba)
+                      ProtobufCAllocator *allocator)
 {
 	const uint8_t* buffer_end = buffer+buffer_size;
-	${additional_variables}
+	${merge_unpack__additional_variables}
 	${required_fields_init}
 
 	while (buffer < buffer_end) {
@@ -45,23 +45,58 @@ int ${message_type}__unpack_merge
 	${required_fields_check}
 	return 0;
 }
+
+${MessageType} *${message_type}__unpack
+                     (ProtobufCAllocator *allocator,
+                      size_t len, const uint8_t *data)
+{
+	if (allocator == NULL)
+		allocator = &protobuf_c_default_allocator;
+	${MessageType} *m = memory_allocate(sizeof(*m), allocator);
+	if (m == NULL) return NULL;
+	${message_type}__init(m);
+	if (0 > ${message_type}__unpack_merge(m, data, len, allocator)) {
+		${message_type}__free_unpacked(m, allocator);
+		return NULL;
+	}
+	return m;
+}
+
+void ${message_type}__free_unpacked
+                     (${MessageType}* message,
+                      ProtobufCAllocator *allocator)
+{
+	if (allocator == NULL)
+		allocator = &protobuf_c_default_allocator;
+	${free_unpacked__additional_variables}
+	${free_fields}
+	memory_free(message, allocator);
+}
+
 """
 
-SOURCE = """
+COMMON_SOURCE = """
 static inline void* memory_allocate(const size_t size,
-			ProtobufCAllocator *pba) {
-	return pba->alloc(pba->allocator_data, size);
+			ProtobufCAllocator *allocator) {
+	return allocator->alloc(allocator->allocator_data, size);
 }
 
 static inline void* memory_allocate_copy(const size_t size,
-			ProtobufCAllocator *pba,
+			ProtobufCAllocator *allocator,
 			const uint8_t* src, const size_t src_size) {
 	if (size < src_size) return NULL;
-	void *ret = pba->alloc(pba->allocator_data, size);
+	void *ret = allocator->alloc(allocator->allocator_data, size);
 	if (ret) {
 		memcpy(ret, src, src_size);
 	}
 	return ret;
+}
+
+static void memory_free(void *ptr, ProtobufCAllocator *allocator)
+{
+	if (ptr) {
+		allocator->free(allocator->allocator_data, ptr);
+	}
 }
 
 ${readers}
@@ -250,7 +285,7 @@ def to_underlines(TypeName):
 		if c.lower() != c and c.upper() == c and i != 0 and TypeName[i-1].upper() != TypeName[i-1]:
 			type_name += "_"
 		type_name += c.lower()
-	return type_name
+	return type_name.replace(".","__")
 
 def to_TypeName(s):
 	r = ''
@@ -305,6 +340,9 @@ class _base(object):
 			return render("\n".join([s for s in data if s]),self)
 		return render(data, self)
 
+	def field_full_name(self):
+		return to_underlines(self._message.full_name + '.' + self._field.name).lower()
+
 	def is_optional(self):
 		return bool(LABEL_TO_NAME_MAP[self._field.label] == 'optional')
 
@@ -313,6 +351,12 @@ class _base(object):
 
 	def is_required(self):
 		return bool(LABEL_TO_NAME_MAP[self._field.label] == 'required')
+
+	def is_complex(self):
+		return self.type_name in ('string', 'bytes', 'submessage')
+
+	def has_default_value(self):
+		return self._field.HasField('default_value')
 
 	def _tag(self, wire_type):
 		b = []
@@ -355,9 +399,9 @@ class _base(object):
 		return self.render("""
 			if ( ((object->n_${name}-1) & (object->n_${name})) == 0) {
 				if (object->n_${name} == 0) {
-					if ((object->${name} = memory_allocate(${repeated_init_size}*sizeof(${c_type}), pba)) == NULL) return PROTOBUF_C__NOT_ENOUGH_MEMORY;
+					if ((object->${name} = memory_allocate(${repeated_init_size}*sizeof(${c_type}), allocator)) == NULL) return PROTOBUF_C__NOT_ENOUGH_MEMORY;
 				} else if (object->n_${name} >= ${repeated_init_size}) {
-					void *new_ptr = memory_allocate_copy(2*(object->n_${name})*sizeof(${c_type}), pba,
+					void *new_ptr = memory_allocate_copy(2*(object->n_${name})*sizeof(${c_type}), allocator,
 						(uint8_t*)object->${name}, (object->n_${name})*sizeof(${c_type}));
 					if (!new_ptr) return PROTOBUF_C__NOT_ENOUGH_MEMORY;
 					object->${name} = new_ptr;
@@ -555,12 +599,23 @@ class _string(_base):
 			if ((buffer=read_uint32(&length, buffer, buffer_end)) == NULL) return PROTOBUF_C__WRONG_MESSAGE;
 			if (buffer + length > buffer_end) return PROTOBUF_C__WRONG_MESSAGE;
 			if ((${read_to_field} = memory_allocate_copy(length+1,
-					pba, buffer, length)) == NULL) return PROTOBUF_C__NOT_ENOUGH_MEMORY;
+					allocator, buffer, length)) == NULL) return PROTOBUF_C__NOT_ENOUGH_MEMORY;
 			${read_to_field}[length] = 0;
 			buffer += length;
 			${repeated_increment_count}
 			${has_required_field}
 		""")
+
+	def free(self):
+		if self.has_default_value():
+			return self.render("""
+				if (message->${name} && message->${name} != ${field_full_name}__default_value)
+					memory_free(message->${name}, allocator);
+				""")
+		return self.render("memory_free(message->${name}, allocator);")
+
+	def free_repeated(self):
+		return self.render("memory_free(message->${name}[i], allocator);")
 
 @field
 class _submessage(_base):
@@ -572,22 +627,25 @@ class _submessage(_base):
 	"""
 	wire_type = 2
 
-	def field_full_name(self):
+	def field_type_name(self):
 		if self._field.type_name.startswith('.'):
 			return self._field.type_name[1:]
 		return self._message.full_name + '.' + self._field.type_name
 
 	def submessage_type(self):
-		return to_TypeName(self.field_full_name())
+		return to_TypeName(self.field_type_name())
 
 	def c_type(self):
 		return "%s*" % self.submessage_type()
 
-	def submessage_init(self):
-		return to_underlines(self.field_full_name()).lower().replace(".","__")+"__init"
+	def submessage__init(self):
+		return to_underlines(self.field_type_name()).lower() + "__init"
 
-	def submessage_merge(self):
-		return to_underlines(self.field_full_name()).lower().replace(".","__")+"__unpack_merge"
+	def submessage__unpack_merge(self):
+		return to_underlines(self.field_type_name()).lower() + "__unpack_merge"
+
+	def submessage__free_unpacked(self):
+		return to_underlines(self.field_type_name()).lower() + "__free_unpacked"
 
 	def read_to_field(self):
 		if self.is_repeated():
@@ -597,11 +655,11 @@ class _submessage(_base):
 
 	def submessage_tmp(self):
 		return self.render("""
-			${submessage_type} *submessage_tmp = memory_allocate(sizeof(${submessage_type}), pba);
+			${submessage_type} *submessage_tmp = memory_allocate(sizeof(${submessage_type}), allocator);
 			if (!submessage_tmp) {
 				return PROTOBUF_C__NOT_ENOUGH_MEMORY;
 			}
-			${submessage_init}(submessage_tmp);
+			${submessage__init}(submessage_tmp);
 		""")
 
 	def read(self):
@@ -615,7 +673,7 @@ class _submessage(_base):
 			ret+="""
 				{
 					${submessage_tmp}
-					t = ${submessage_merge}(submessage_tmp, buffer-length, length, pba);
+					t = ${submessage__unpack_merge}(submessage_tmp, buffer-length, length, allocator);
 					if (t < 0) return t;
 					${read_to_field} = submessage_tmp;
 				}
@@ -624,11 +682,11 @@ class _submessage(_base):
 			ret+="""
 				if (${read_to_field} == NULL) {
 					${submessage_tmp}
-					t = ${submessage_merge}(submessage_tmp, buffer-length, length, pba);
+					t = ${submessage__unpack_merge}(submessage_tmp, buffer-length, length, allocator);
 					if (t < 0) return t;
 					${read_to_field} = submessage_tmp;
 				} else {
-					t = ${submessage_merge}(${read_to_field}, buffer-length, length, pba);
+					t = ${submessage__unpack_merge}(${read_to_field}, buffer-length, length, allocator);
 					if (t < 0) return t;
 				}
 			"""
@@ -639,6 +697,12 @@ class _submessage(_base):
 		"""
 
 		return self.render(ret)
+
+	def free(self):
+		return self.render("if (message->${name}) ${submessage__free_unpacked}(message->${name}, allocator);")
+
+	def free_repeated(self):
+		return self.render("${submessage__free_unpacked}(message->${name}[i], allocator);")
 
 
 @field
@@ -658,13 +722,24 @@ class _bytes(_base):
 			if ((buffer=read_uint32(&length, buffer, buffer_end)) == NULL) return PROTOBUF_C__WRONG_MESSAGE;
 			if (buffer + length > buffer_end) return PROTOBUF_C__WRONG_MESSAGE;
 			if ((${read_to_field}.data = memory_allocate_copy(length,
-					pba, buffer, length)) == NULL) return PROTOBUF_C__NOT_ENOUGH_MEMORY;
+					allocator, buffer, length)) == NULL) return PROTOBUF_C__NOT_ENOUGH_MEMORY;
 			${read_to_field}.len = length;
 			buffer += length;
 			${repeated_increment_count}
 			${has_value_set_true}
 			${has_required_field}
 		""")
+
+	def free(self):
+		if self.has_default_value():
+			return self.render("""
+				if (message->${name}.data && message->${name}.data != ${field_full_name}__default_value_data)
+					memory_free(message->${name}.data, allocator);
+				""")
+		return self.render("memory_free(message->${name}.data, allocator);")
+
+	def free_repeated(self):
+		return self.render("memory_free(message->${name}[i].data, allocator);")
 
 #####################
 # </fields>
@@ -680,7 +755,7 @@ class Message(object):
 		for field in descriptor.field:
 			f = get_field(field)
 			setattr(f, '_message', self)
-			if f.is_required() and not field.HasField('default_value'):
+			if f.is_required() and not f.has_default_value():
 				setattr(f, '_required_field_id', self.n_required_fields)
 				self.n_required_fields += 1
 			self.fields.append(f)
@@ -706,14 +781,26 @@ class Message(object):
 		return to_TypeName(self.full_name)
 
 	def message_type(self):
-		return to_underlines(self.full_name).lower().replace(".","__")
+		return to_underlines(self.full_name).lower()
 
 	def MESSAGE_TYPE(self):
-		return to_underlines(self.full_name).upper().replace(".","__")
+		return to_underlines(self.full_name).upper()
 
 	def has_repeated_fields(self):
 		for f in self.fields:
 			if f.is_repeated():
+				return True
+		return False
+
+	def has_complex_fields(self):
+		for f in self.fields:
+			if f.is_complex():
+				return True
+		return False
+
+	def has_repeated_complex_fields(self):
+		for f in self.fields:
+			if f.is_complex() and f.is_repeated():
 				return True
 		return False
 
@@ -729,20 +816,25 @@ class Message(object):
 				return True
 		return False
 
-	def additional_variables(self):
+	def merge_unpack__additional_variables(self):
 		out = []
 		if self.has_packed_fields():
 			out.append("const uint8_t* tmp_buffer_pointer = NULL;")
 		if self.has_packed_fields() or self.has_field_type(('submessage',)):
 			out.append("int32_t t = 0;")
-		if self.has_field_type(('string', 'submessage', 'bytes')):
+		if self.has_complex_fields():
 			out.append("uint32_t length = 0;")
 		if len(self.fields) == 0:
 			out.append("(void) object;")
 		return self.render("\n".join(out))
 
-	def unpack_merge(self):
-		return self.render(MESSAGE_SOURCE_TEMPLATE)
+	def free_unpacked__additional_variables(self):
+		if self.has_repeated_complex_fields():
+			return "unsigned i;"
+		return ""
+
+	def generated_methods(self):
+		return self.render(MESSAGE_GENERATED_METHODS)
 
 	def readers(self):
 		r = []
@@ -810,6 +902,21 @@ class Message(object):
 			return ""
 		return """if (!(${required_fields_all_set})) return PROTOBUF_C__WRONG_MESSAGE;"""
 
+	def free_fields(self):
+		out = []
+		for f in self.fields:
+			if f.is_repeated():
+				if f.is_complex():
+					out.append(f.render("""
+						for (i = 0; i < message->n_${name}; i++) {
+							${free_repeated}
+						}
+					"""))
+				out.append(f.render("memory_free(message->${name}, allocator);"));
+			elif f.is_complex():
+				out.append(f.render("${free}"));
+		return render("\n".join(out), self)
+
 class Module(object):
 	def __init__(self, fdp):
 		self.messages = []
@@ -846,7 +953,7 @@ class Module(object):
 		return self.filename()+".pb-c.c"
 
 	def source(self):
-		return self.render(SOURCE)
+		return self.render(COMMON_SOURCE)
 
 	def readers(self):
 		r = []
@@ -860,7 +967,7 @@ class Module(object):
 	def pieces(self):
 		yield "readers", self.source()
 		for message in self.messages:
-			yield message.message_type() + '__unpack_merge', message.unpack_merge()
+			yield message.message_type(), message.generated_methods()
 
 def generate(res, fdp):
 	module = Module(fdp)
