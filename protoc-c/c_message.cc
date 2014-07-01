@@ -297,11 +297,6 @@ GenerateHelperFunctionDefinitions(io::Printer* printer)
 		 "  assert(message->base.descriptor == &$lcclassname$__descriptor);\n"
 		 "  return protobuf_c_message_pack_to_buffer_slow(&message->base, buffer);\n"
 		 "}\n"
-		 "protobuf_c_boolean $lcclassname$__check\n"
-		 "                     (const $classname$ *message)\n"
-		 "{\n"
-		 "  return protobuf_c_message_check_slow(&message->base);\n"
-		 "}\n"
 		 "// @@protoc_insertion_point($lcclassname$)\n"
 		);
 }
