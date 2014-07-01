@@ -648,17 +648,8 @@ class _submessage(_base):
 	def c_type(self):
 		return "%s*" % self.submessage_type()
 
-	def submessage__init(self):
-		return to_underlines(self.field_type_name()).lower() + "__init"
-
-	def submessage__unpack_merge(self):
-		return to_underlines(self.field_type_name()).lower() + "__unpack_merge"
-
-	def submessage__free_unpacked(self):
-		return to_underlines(self.field_type_name()).lower() + "__free_unpacked"
-
-	def submessage__check(self):
-		return to_underlines(self.field_type_name()).lower() + "__check"
+	def submessage(self):
+		return to_underlines(self.field_type_name()).lower()
 
 	def read_to_field(self):
 		if self.is_repeated():
@@ -672,7 +663,7 @@ class _submessage(_base):
 			if (!submessage_tmp) {
 				return PROTOBUF_C__NOT_ENOUGH_MEMORY;
 			}
-			${submessage__init}(submessage_tmp);
+			${submessage}__init(submessage_tmp);
 		""")
 
 	def read(self):
@@ -686,8 +677,11 @@ class _submessage(_base):
 			ret+="""
 				{
 					${submessage_tmp}
-					t = ${submessage__unpack_merge}(submessage_tmp, buffer-length, length, allocator);
-					if (t < 0) return t;
+					t = ${submessage}__unpack_merge(submessage_tmp, buffer-length, length, allocator);
+					if (t < 0) {
+						${submessage}__free_unpacked(submessage_tmp, allocator);
+						return t;
+					}
 					${read_to_field} = submessage_tmp;
 				}
 			"""
@@ -695,11 +689,14 @@ class _submessage(_base):
 			ret+="""
 				if (${read_to_field} == NULL) {
 					${submessage_tmp}
-					t = ${submessage__unpack_merge}(submessage_tmp, buffer-length, length, allocator);
-					if (t < 0) return t;
+					t = ${submessage}__unpack_merge(submessage_tmp, buffer-length, length, allocator);
+					if (t < 0) {
+						${submessage}__free_unpacked(submessage_tmp, allocator);
+						return t;
+					}
 					${read_to_field} = submessage_tmp;
 				} else {
-					t = ${submessage__unpack_merge}(${read_to_field}, buffer-length, length, allocator);
+					t = ${submessage}__unpack_merge(${read_to_field}, buffer-length, length, allocator);
 					if (t < 0) return t;
 				}
 			"""
@@ -712,10 +709,10 @@ class _submessage(_base):
 		return self.render(ret)
 
 	def free(self):
-		return self.render("if (message->${name}) ${submessage__free_unpacked}(message->${name}, allocator);")
+		return self.render("if (message->${name}) ${submessage}__free_unpacked(message->${name}, allocator);")
 
 	def free_repeated(self):
-		return self.render("${submessage__free_unpacked}(message->${name}[i], allocator);")
+		return self.render("${submessage}__free_unpacked(message->${name}[i], allocator);")
 
 
 @field
@@ -943,7 +940,7 @@ class Message(object):
 				if f.type_name == 'submessage':
 					out.append(f.render("""
 						for (i = 0; i < message->n_${name}; i++) {
-							if (!${submessage__check}(message->${name}[i])) return 0;
+							if (!${submessage}__check(message->${name}[i])) return 0;
 						}
 					"""))
 				elif f.type_name == 'string':
@@ -962,9 +959,9 @@ class Message(object):
 			else:
 				if f.type_name == 'submessage':
 					if f.is_required():
-						out.append(f.render("if (!${submessage__check}(message->${name})) return 0;"))
+						out.append(f.render("if (!${submessage}__check(message->${name})) return 0;"))
 					else:
-						out.append(f.render("if (message->${name} && !${submessage__check}(message->${name})) return 0;"))
+						out.append(f.render("if (message->${name} && !${submessage}__check(message->${name})) return 0;"))
 				elif f.type_name == 'string':
 					if f.is_required():
 						out.append(f.render("if (message->${name} == NULL) return 0;"))
