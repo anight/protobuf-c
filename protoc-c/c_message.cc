@@ -194,8 +194,6 @@ GenerateHelperFunctionDeclarations(io::Printer* printer)
 		 "/* $classname$ methods */\n"
 		 "void   $lcclassname$__init\n"
 		 "                     ($classname$         *message);\n"
-		);
-  printer->Print(vars,
 		 "size_t $lcclassname$__get_packed_size\n"
 		 "                     (const $classname$   *message);\n"
 		 "size_t $lcclassname$__pack\n"
@@ -209,7 +207,7 @@ GenerateHelperFunctionDeclarations(io::Printer* printer)
 		 "                     (ProtobufCAllocator  *allocator,\n"
 		 "                      size_t               len,\n"
 		 "                      const uint8_t       *data);\n"
-		 "int $lcclassname$__unpack_merge\n"
+		 "int    $lcclassname$__unpack_merge\n"
 		 "                     ($classname$ *message,\n"
 		 "                      const uint8_t       *data,\n"
 		 "                      size_t               len,\n"
@@ -266,39 +264,8 @@ GenerateHelperFunctionDefinitions(io::Printer* printer)
   }
 
   std::map<string, string> vars;
-  vars["classname"] = FullNameToC(descriptor_->full_name());
   vars["lcclassname"] = FullNameToLower(descriptor_->full_name());
-  vars["ucclassname"] = FullNameToUpper(descriptor_->full_name());
-  printer->Print(vars,
-		 "void   $lcclassname$__init\n"
-		 "                     ($classname$         *message)\n"
-		 "{\n"
-		 "  static $classname$ init_value = $ucclassname$__INIT;\n"
-		 "  *message = init_value;\n"
-		 "}\n");
-  printer->Print(vars,
-		 "size_t $lcclassname$__get_packed_size\n"
-		 "                     (const $classname$ *message)\n"
-		 "{\n"
-		 "  assert(message->base.descriptor == &$lcclassname$__descriptor);\n"
-		 "  return protobuf_c_message_get_packed_size_slow(&message->base);\n"
-		 "}\n"
-		 "size_t $lcclassname$__pack\n"
-		 "                     (const $classname$ *message,\n"
-		 "                      uint8_t       *out)\n"
-		 "{\n"
-		 "  assert(message->base.descriptor == &$lcclassname$__descriptor);\n"
-		 "  return protobuf_c_message_pack_slow(&message->base, out);\n"
-		 "}\n"
-		 "size_t $lcclassname$__pack_to_buffer\n"
-		 "                     (const $classname$ *message,\n"
-		 "                      ProtobufCBuffer *buffer)\n"
-		 "{\n"
-		 "  assert(message->base.descriptor == &$lcclassname$__descriptor);\n"
-		 "  return protobuf_c_message_pack_to_buffer_slow(&message->base, buffer);\n"
-		 "}\n"
-		 "// @@protoc_insertion_point($lcclassname$)\n"
-		);
+  printer->Print(vars, "// @@protoc_insertion_point($lcclassname$)\n");
 }
 
 void MessageGenerator::

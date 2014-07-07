@@ -184,6 +184,7 @@ size_t foo__bar__baz_bah__pack_to_buffer
 #include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 #ifdef __cplusplus
 # define PROTOBUF_C__BEGIN_DECLS	extern "C" {
@@ -1156,6 +1157,423 @@ protobuf_c_service_invoke_internal(
 	void *closure_data);
 
 /**@}*/
+
+
+
+
+
+
+
+
+
+static inline void* memory_allocate(const size_t size,
+      ProtobufCAllocator *allocator) {
+  return allocator->alloc(allocator->allocator_data, size);
+}
+
+static inline void* memory_allocate_copy(const size_t size,
+      ProtobufCAllocator *allocator,
+      const uint8_t* src, const size_t src_size) {
+  if (size < src_size) return NULL;
+  void *ret = allocator->alloc(allocator->allocator_data, size);
+  if (ret) {
+    memcpy(ret, src, src_size);
+  }
+  return ret;
+}
+
+static inline void memory_free(void *ptr, ProtobufCAllocator *allocator)
+{
+  if (ptr) {
+    allocator->free(allocator->allocator_data, ptr);
+  }
+}
+
+static const int s_endianness = 1;
+
+static inline const uint8_t* read_fixed32(uint32_t* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+  if (buffer+4 > buffer_end) return NULL;
+  if (1==*(char*)&(s_endianness)) { // runtime little-endian test 
+    *v = *(uint32_t*)buffer;
+  } else {
+    *v = ((uint32_t)buffer[0]) | (((uint32_t)buffer[1]) << 8) | (((uint32_t)buffer[2]) << 16) | (((uint32_t)buffer[3]) << 24);
+  }
+  return buffer+4;
+}
+
+static inline const uint8_t* read_fixed64(uint64_t* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+  if (buffer+8 > buffer_end) return NULL;
+  if (1==*(char*)&(s_endianness)) { // runtime little-endian test
+    *v = *(uint64_t*)buffer;
+  } else {
+    *v = ((uint64_t)buffer[0]) | (((uint64_t)buffer[1]) << 8)              | (((uint64_t)buffer[2]) << 16) | (((uint64_t)buffer[3]) << 24)              | (((uint64_t)buffer[4]) << 32) | (((uint64_t)buffer[5]) << 40)              | (((uint64_t)buffer[6]) << 48) | (((uint64_t)buffer[7]) << 56);
+  }
+  return buffer+8;
+}
+
+static inline const uint8_t* read_bool(protobuf_c_boolean* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+  uint8_t i = 0;
+  uint64_t tmp = 0;
+  while (1) {
+    if (buffer>=buffer_end) return NULL;
+    tmp |= ((uint64_t)((*buffer)&0x7f))<<((i++)*7);
+    if ((*buffer++)>>7) continue;
+    break;
+  }
+  *v = (protobuf_c_boolean)tmp;
+  return buffer;
+}
+
+static inline const uint8_t* read_enum(int* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+  uint8_t i = 0;
+  uint64_t tmp = 0;
+  while (1) {
+    if (buffer>=buffer_end) return NULL;
+    tmp |= ((uint64_t)((*buffer)&0x7f))<<((i++)*7);
+    if ((*buffer++)>>7) continue;
+    break;
+  }
+  *v = tmp;
+  return buffer;
+}
+
+static inline const uint8_t* read_int32(int32_t* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+  uint8_t i = 0;
+  uint64_t tmp = 0;
+  while (1) {
+    if (buffer>=buffer_end) return NULL;
+    tmp |= ((uint64_t)((*buffer)&0x7f))<<((i++)*7);
+    if ((*buffer++)>>7) continue;
+    break;
+  }
+  *v = tmp;
+  return buffer;
+}
+
+static inline const uint8_t* read_int64(int64_t* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+  uint8_t i = 0;
+  uint64_t tmp = 0;
+  while (1) {
+    if (buffer>=buffer_end) return NULL;
+    tmp |= ((uint64_t)((*buffer)&0x7f))<<((i++)*7);
+    if ((*buffer++)>>7) continue;
+    break;
+  }
+  *v = tmp;
+  return buffer;
+}
+
+static inline const uint8_t* read_sint32(int32_t* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+  uint8_t i = 0;
+  uint32_t tmp = 0;
+  while (1) {
+    if (buffer>=buffer_end) return NULL;
+    tmp |= ((uint32_t)((*buffer)&0x7f))<<((i++)*7);
+    if ((*buffer++)>>7) continue;
+    break;
+  }
+  *v = ((tmp >> 1) ^ (-(tmp & 1)));
+  return buffer;
+}
+
+static inline const uint8_t* read_sint64(int64_t* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+  uint8_t i = 0;
+  uint64_t tmp = 0;
+  while (1) {
+    if (buffer>=buffer_end) return NULL;
+    tmp |= ((uint64_t)((*buffer)&0x7f))<<((i++)*7);
+    if ((*buffer++)>>7) continue;
+    break;
+  }
+  *v = ((tmp >> 1) ^ (-(tmp & 1)));
+  return buffer;
+}
+
+static inline const uint8_t* read_uint32(uint32_t* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+  uint8_t i = 0;
+  uint32_t tmp = 0;
+  while (1) {
+    if (buffer>=buffer_end) return NULL;
+    tmp |= ((uint32_t)((*buffer)&0x7f))<<((i++)*7);
+    if ((*buffer++)>>7) continue;
+    break;
+  }
+  *v = tmp;
+  return buffer;
+}
+
+static inline const uint8_t* read_uint64(uint64_t* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+  uint8_t i = 0;
+  uint64_t tmp = 0;
+  while (1) {
+    if (buffer>=buffer_end) return NULL;
+    tmp |= ((uint64_t)((*buffer)&0x7f))<<((i++)*7);
+    if ((*buffer++)>>7) continue;
+    break;
+  }
+  *v = tmp;
+  return buffer;
+}
+
+static inline const uint8_t* skip_varint(const uint8_t* buffer, const uint8_t* buffer_end) {
+  while (1) {
+    if ((*buffer++)>>7==0) break;
+    if (buffer >= buffer_end) return NULL;
+  }
+  return buffer;
+}
+
+static inline const uint8_t* skip_fixed32(const uint8_t* buffer, const uint8_t* buffer_end) {
+  buffer+=4;
+  if (buffer_end >= buffer)
+    return buffer;
+  return NULL;
+}
+
+static inline const uint8_t* skip_fixed64(const uint8_t* buffer, const uint8_t* buffer_end) {
+  buffer+=8;
+  if (buffer_end >= buffer)
+    return buffer;
+  return NULL;
+}
+
+static inline const uint8_t* skip_bytes(const uint8_t* buffer, const uint8_t* buffer_end) {
+  uint32_t v = 0;
+  if ((buffer = read_uint32(&v, buffer, buffer_end)) == NULL) return NULL;
+  buffer += v;
+  if (buffer_end >= buffer)
+    return buffer;
+  return NULL;
+}
+
+static inline const uint8_t* skip_field(const uint8_t* buffer, const uint8_t* buffer_end) {
+  uint8_t type = (*buffer)&0x7;
+
+  if ((buffer=skip_varint(buffer, buffer_end)) == NULL) return NULL;
+
+  switch (type) {
+    case 0: //varint
+      if ((buffer=skip_varint(buffer, buffer_end)) == NULL) return NULL;
+      break;
+    case 1: //fixed64
+      if ((buffer=skip_fixed64(buffer, buffer_end)) == NULL) return NULL;
+      break;
+    case 2: //bytes
+      if ((buffer=skip_bytes(buffer, buffer_end)) == NULL) return NULL;
+      break;
+    case 5: //fixed32
+      if ((buffer=skip_fixed32(buffer, buffer_end)) == NULL) return NULL;
+      break;
+    default:
+      return NULL;
+      break;
+  }
+  return buffer;
+}
+
+
+
+
+
+/**
+ * Return the number of bytes required to store the tag for the field. Includes
+ * 3 bits for the wire-type, and a single bit that denotes the end-of-tag.
+ *
+ * \param number
+ *      Field tag to encode.
+ * \return
+ *      Number of bytes required.
+ */
+static inline size_t
+get_tag_size(unsigned number)
+{
+	if (number < (1 << 4)) {
+		return 1;
+	} else if (number < (1 << 11)) {
+		return 2;
+	} else if (number < (1 << 18)) {
+		return 3;
+	} else if (number < (1 << 25)) {
+		return 4;
+	} else {
+		return 5;
+	}
+}
+
+/**
+ * Return the number of bytes required to store a variable-length unsigned
+ * 32-bit integer in base-128 varint encoding.
+ *
+ * \param v
+ *      Value to encode.
+ * \return
+ *      Number of bytes required.
+ */
+static inline size_t
+uint32_size(uint32_t v)
+{
+	if (v < (1 << 7)) {
+		return 1;
+	} else if (v < (1 << 14)) {
+		return 2;
+	} else if (v < (1 << 21)) {
+		return 3;
+	} else if (v < (1 << 28)) {
+		return 4;
+	} else {
+		return 5;
+	}
+}
+
+/**
+ * Return the number of bytes required to store a variable-length signed 32-bit
+ * integer in base-128 varint encoding.
+ *
+ * \param v
+ *      Value to encode.
+ * \return
+ *      Number of bytes required.
+ */
+static inline size_t
+int32_size(int32_t v)
+{
+	if (v < 0) {
+		return 10;
+	} else if (v < (1 << 7)) {
+		return 1;
+	} else if (v < (1 << 14)) {
+		return 2;
+	} else if (v < (1 << 21)) {
+		return 3;
+	} else if (v < (1 << 28)) {
+		return 4;
+	} else {
+		return 5;
+	}
+}
+
+/**
+ * Return the ZigZag-encoded 32-bit unsigned integer form of a 32-bit signed
+ * integer.
+ *
+ * \param v
+ *      Value to encode.
+ * \return
+ *      ZigZag encoded integer.
+ */
+static inline uint32_t
+zigzag32(int32_t v)
+{
+	if (v < 0)
+		return ((uint32_t) (-v)) * 2 - 1;
+	else
+		return v * 2;
+}
+
+/**
+ * Return the number of bytes required to store a signed 32-bit integer,
+ * converted to an unsigned 32-bit integer with ZigZag encoding, using base-128
+ * varint encoding.
+ *
+ * \param v
+ *      Value to encode.
+ * \return
+ *      Number of bytes required.
+ */
+static inline size_t
+sint32_size(int32_t v)
+{
+	return uint32_size(zigzag32(v));
+}
+
+/**
+ * Return the number of bytes required to store a 64-bit unsigned integer in
+ * base-128 varint encoding.
+ *
+ * \param v
+ *      Value to encode.
+ * \return
+ *      Number of bytes required.
+ */
+static inline size_t
+uint64_size(uint64_t v)
+{
+	uint32_t upper_v = (uint32_t) (v >> 32);
+
+	if (upper_v == 0) {
+		return uint32_size((uint32_t) v);
+	} else if (upper_v < (1 << 3)) {
+		return 5;
+	} else if (upper_v < (1 << 10)) {
+		return 6;
+	} else if (upper_v < (1 << 17)) {
+		return 7;
+	} else if (upper_v < (1 << 24)) {
+		return 8;
+	} else if (upper_v < (1U << 31)) {
+		return 9;
+	} else {
+		return 10;
+	}
+}
+
+/**
+ * Return the ZigZag-encoded 64-bit unsigned integer form of a 64-bit signed
+ * integer.
+ *
+ * \param v
+ *      Value to encode.
+ * \return
+ *      ZigZag encoded integer.
+ */
+static inline uint64_t
+zigzag64(int64_t v)
+{
+	if (v < 0)
+		return ((uint64_t) (-v)) * 2 - 1;
+	else
+		return v * 2;
+}
+
+/**
+ * Return the number of bytes required to store a signed 64-bit integer,
+ * converted to an unsigned 64-bit integer with ZigZag encoding, using base-128
+ * varint encoding.
+ *
+ * \param v
+ *      Value to encode.
+ * \return
+ *      Number of bytes required.
+ */
+static inline size_t
+sint64_size(int64_t v)
+{
+	return uint64_size(zigzag64(v));
+}
+
+
+static inline size_t
+string_size(const char *str)
+{
+	size_t len = strlen(str);
+	return uint32_size(len) + len;
+}
+
+
+static inline size_t
+submessage_size(size_t len)
+{
+	return uint32_size(len) + len;
+}
+
+
+static inline size_t
+bytes_size(const ProtobufCBinaryData bd)
+{
+	size_t len = bd.len;
+	return uint32_size(len) + len;
+}
+
 
 PROTOBUF_C__END_DECLS
 

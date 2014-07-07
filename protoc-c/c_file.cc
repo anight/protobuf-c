@@ -232,10 +232,8 @@ void FileGenerator::GenerateSource(io::Printer* printer) {
     "#define PROTOBUF_C__WRONG_MESSAGE       -1\n"
     "#define PROTOBUF_C__NOT_ENOUGH_MEMORY   -2\n"
     "\n"
-    "#include <string.h>\n"
     "#include \"$basename$.pb-c.h\"\n"
-    "\n"
-    "// @@protoc_insertion_point(readers)\n",
+    "\n",
     "filename", file_->name(),
     "basename", StripProto(file_->name()));
 
