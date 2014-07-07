@@ -150,13 +150,13 @@ system_free(void *allocator_data, void *data)
 	free(data);
 }
 
-static inline void *
+static void *
 do_alloc(ProtobufCAllocator *allocator, size_t size)
 {
 	return allocator->alloc(allocator->allocator_data, size);
 }
 
-static inline void
+static void
 do_free(ProtobufCAllocator *allocator, void *data)
 {
 	if (data != NULL)
@@ -225,7 +225,7 @@ protobuf_c_buffer_simple_append(ProtobufCBuffer *buffer,
  * \return
  *      Number of bytes required.
  */
-static inline size_t
+static size_t
 get_tag_size(unsigned number)
 {
 	if (number < (1 << 4)) {
@@ -250,7 +250,7 @@ get_tag_size(unsigned number)
  * \return
  *      Number of bytes required.
  */
-static inline size_t
+static size_t
 uint32_size(uint32_t v)
 {
 	if (v < (1 << 7)) {
@@ -275,7 +275,7 @@ uint32_size(uint32_t v)
  * \return
  *      Number of bytes required.
  */
-static inline size_t
+static size_t
 int32_size(int32_t v)
 {
 	if (v < 0) {
@@ -302,7 +302,7 @@ int32_size(int32_t v)
  * \return
  *      ZigZag encoded integer.
  */
-static inline uint32_t
+static uint32_t
 zigzag32(int32_t v)
 {
 	if (v < 0)
@@ -321,7 +321,7 @@ zigzag32(int32_t v)
  * \return
  *      Number of bytes required.
  */
-static inline size_t
+static size_t
 sint32_size(int32_t v)
 {
 	return uint32_size(zigzag32(v));
@@ -336,7 +336,7 @@ sint32_size(int32_t v)
  * \return
  *      Number of bytes required.
  */
-static inline size_t
+static size_t
 uint64_size(uint64_t v)
 {
 	uint32_t upper_v = (uint32_t) (v >> 32);
@@ -367,7 +367,7 @@ uint64_size(uint64_t v)
  * \return
  *      ZigZag encoded integer.
  */
-static inline uint64_t
+static uint64_t
 zigzag64(int64_t v)
 {
 	if (v < 0)
@@ -386,7 +386,7 @@ zigzag64(int64_t v)
  * \return
  *      Number of bytes required.
  */
-static inline size_t
+static size_t
 sint64_size(int64_t v)
 {
 	return uint64_size(zigzag64(v));
@@ -588,7 +588,7 @@ repeated_field_get_packed_size(const ProtobufCFieldDescriptor *field,
  * \return
  *      Number of bytes required.
  */
-static inline size_t
+static size_t
 unknown_field_get_packed_size(const ProtobufCMessageUnknownField *field)
 {
 	return get_tag_size(field->tag) + field->len;
@@ -650,7 +650,7 @@ size_t protobuf_c_message_get_packed_size_slow(const ProtobufCMessage *message)
  * \return
  *      Number of bytes written to `out`.
  */
-static inline size_t
+static size_t
 uint32_pack(uint32_t value, uint8_t *out)
 {
 	unsigned rv = 0;
@@ -687,7 +687,7 @@ uint32_pack(uint32_t value, uint8_t *out)
  * \return
  *      Number of bytes written to `out`.
  */
-static inline size_t
+static size_t
 int32_pack(int32_t value, uint8_t *out)
 {
 	if (value < 0) {
@@ -715,7 +715,7 @@ int32_pack(int32_t value, uint8_t *out)
  * \return
  *      Number of bytes written to `out`.
  */
-static inline size_t
+static size_t
 sint32_pack(int32_t value, uint8_t *out)
 {
 	return uint32_pack(zigzag32(value), out);
@@ -772,7 +772,7 @@ uint64_pack(uint64_t value, uint8_t *out)
  * \return
  *      Number of bytes written to `out`.
  */
-static inline size_t
+static size_t
 sint64_pack(int64_t value, uint8_t *out)
 {
 	return uint64_pack(zigzag64(value), out);
@@ -789,7 +789,7 @@ sint64_pack(int64_t value, uint8_t *out)
  * \return
  *      Number of bytes written to `out`.
  */
-static inline size_t
+static size_t
 fixed32_pack(uint32_t value, void *out)
 {
 #if !defined(WORDS_BIGENDIAN)
@@ -820,7 +820,7 @@ fixed32_pack(uint32_t value, void *out)
  * \return
  *      Number of bytes written to `out`.
  */
-static inline size_t
+static size_t
 fixed64_pack(uint64_t value, void *out)
 {
 #if !defined(WORDS_BIGENDIAN)
@@ -845,7 +845,7 @@ fixed64_pack(uint64_t value, void *out)
  * \return
  *      Number of bytes written to `out`.
  */
-static inline size_t
+static size_t
 boolean_pack(protobuf_c_boolean value, uint8_t *out)
 {
 	*out = value ? TRUE : FALSE;
@@ -867,7 +867,7 @@ boolean_pack(protobuf_c_boolean value, uint8_t *out)
  * \return
  *      Number of bytes written to `out`.
  */
-static inline size_t
+static size_t
 string_pack(const char *str, uint8_t *out)
 {
 	if (str == NULL) {
@@ -892,7 +892,7 @@ string_pack(const char *str, uint8_t *out)
  * \return
  *      Number of bytes written to `out`.
  */
-static inline size_t
+static size_t
 binary_data_pack(const ProtobufCBinaryData *bd, uint8_t *out)
 {
 	size_t len = bd->len;
@@ -912,7 +912,7 @@ binary_data_pack(const ProtobufCBinaryData *bd, uint8_t *out)
  * \return
  *      Number of bytes written to `out`.
  */
-static inline size_t
+static size_t
 prefixed_message_pack(const ProtobufCMessage *message, uint8_t *out)
 {
 	if (message == NULL) {
@@ -1055,7 +1055,7 @@ optional_field_pack(const ProtobufCFieldDescriptor *field,
  * \return
  *      Size of the field.
  */
-static inline size_t
+static size_t
 sizeof_elt_in_repeated_array(ProtobufCType type)
 {
 	switch (type) {
@@ -1760,7 +1760,7 @@ protobuf_c_message_pack_to_buffer_slow(const ProtobufCMessage *message,
  * @{
  */
 
-static inline int
+static int
 int_range_lookup(unsigned n_ranges, const ProtobufCIntRange *ranges, int value)
 {
 	unsigned n;
@@ -1843,7 +1843,7 @@ struct _ScannedMember {
 	const uint8_t *data;       /**< Pointer to field data. */
 };
 
-static inline uint32_t
+static uint32_t
 scan_length_prefixed_data(size_t len, const uint8_t *data,
 			  size_t *prefix_len_out)
 {
@@ -2106,7 +2106,7 @@ count_packed_elements(ProtobufCType type,
 	}
 }
 
-static inline uint32_t
+static uint32_t
 parse_uint32(unsigned len, const uint8_t *data)
 {
 	uint32_t rv = data[0] & 0x7f;
@@ -2124,13 +2124,13 @@ parse_uint32(unsigned len, const uint8_t *data)
 	return rv;
 }
 
-static inline uint32_t
+static uint32_t
 parse_int32(unsigned len, const uint8_t *data)
 {
 	return parse_uint32(len, data);
 }
 
-static inline int32_t
+static int32_t
 unzigzag32(uint32_t v)
 {
 	if (v & 1)
@@ -2139,7 +2139,7 @@ unzigzag32(uint32_t v)
 		return v >> 1;
 }
 
-static inline uint32_t
+static uint32_t
 parse_fixed_uint32(const uint8_t *data)
 {
 #if !defined(WORDS_BIGENDIAN)
@@ -2174,7 +2174,7 @@ parse_uint64(unsigned len, const uint8_t *data)
 	return rv;
 }
 
-static inline int64_t
+static int64_t
 unzigzag64(uint64_t v)
 {
 	if (v & 1)
@@ -2183,7 +2183,7 @@ unzigzag64(uint64_t v)
 		return v >> 1;
 }
 
-static inline uint64_t
+static uint64_t
 parse_fixed_uint64(const uint8_t *data)
 {
 #if !defined(WORDS_BIGENDIAN)
