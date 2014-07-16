@@ -39,6 +39,7 @@ void ${message_type}__init
 size_t ${message_type}__get_packed_size
                      (const ${MessageType} *message)
 {
+	assert(message->base.descriptor == &${message_type}__descriptor);
 	${get_packed_size__additional_variables}
 	size_t sz = 0;
 	${get_packed_size_fields}
@@ -66,6 +67,7 @@ int ${message_type}__unpack_merge
                       const uint8_t *buffer, size_t buffer_size,
                       ProtobufCAllocator *allocator)
 {
+	assert(message->base.descriptor == &${message_type}__descriptor);
 	const uint8_t *buffer_end = buffer+buffer_size;
 	${merge_unpack__additional_variables}
 	${required_fields_init}
@@ -369,7 +371,7 @@ class _base(object):
 			raise Exception("method 'has' called for non-optional field or type is string or submessage")
 		return self.render("message->has_${name}")
 
-	def next(self):
+	def next_scalar(self):
 		if self.is_repeated():
 			return self.render("${vector}[${number}]")
 		return self.render("${scalar}")
@@ -419,7 +421,7 @@ class _base(object):
 		if self.is_repeated():
 			return self.render("""
 				${repeated_check_resize}
-				if ((buffer=${read_function}(${read_convert_type}&${next}, buffer, buffer_end)) == NULL) return PROTOBUF_C__WRONG_MESSAGE;
+				if ((buffer=${read_function}(${read_convert_type}&${next_scalar}, buffer, buffer_end)) == NULL) return PROTOBUF_C__WRONG_MESSAGE;
 				${repeated_increment_count}
 			""")
 		return self.render("""
@@ -544,9 +546,9 @@ class _string(_base):
 			${repeated_check_resize}
 			if ((buffer=read_uint32(&length, buffer, buffer_end)) == NULL) return PROTOBUF_C__WRONG_MESSAGE;
 			if (buffer + length > buffer_end) return PROTOBUF_C__WRONG_MESSAGE;
-			if ((${next} = memory_allocate_copy(length+1,
+			if ((${next_scalar} = memory_allocate_copy(length+1,
 					allocator, buffer, length)) == NULL) return PROTOBUF_C__NOT_ENOUGH_MEMORY;
-			${next}[length] = 0;
+			${next_scalar}[length] = 0;
 			buffer += length;
 			${repeated_increment_count}
 			${has_required_field}
@@ -610,21 +612,21 @@ class _submessage(_base):
 						${submessage}__free_unpacked(submessage_tmp, allocator);
 						return t;
 					}
-					${next} = submessage_tmp;
+					${next_scalar} = submessage_tmp;
 				}
 			"""
 		else: # merge support
 			ret+="""
-				if (${next} == NULL) {
+				if (${next_scalar} == NULL) {
 					${submessage_tmp}
 					t = ${submessage}__unpack_merge(submessage_tmp, buffer-length, length, allocator);
 					if (t < 0) {
 						${submessage}__free_unpacked(submessage_tmp, allocator);
 						return t;
 					}
-					${next} = submessage_tmp;
+					${next_scalar} = submessage_tmp;
 				} else {
-					t = ${submessage}__unpack_merge(${next}, buffer-length, length, allocator);
+					t = ${submessage}__unpack_merge(${next_scalar}, buffer-length, length, allocator);
 					if (t < 0) return t;
 				}
 			"""
@@ -650,9 +652,9 @@ class _bytes(_base):
 			${repeated_check_resize}
 			if ((buffer=read_uint32(&length, buffer, buffer_end)) == NULL) return PROTOBUF_C__WRONG_MESSAGE;
 			if (buffer + length > buffer_end) return PROTOBUF_C__WRONG_MESSAGE;
-			if ((${next}.data = memory_allocate_copy(length,
+			if ((${next_scalar}.data = memory_allocate_copy(length,
 					allocator, buffer, length)) == NULL) return PROTOBUF_C__NOT_ENOUGH_MEMORY;
-			${next}.len = length;
+			${next_scalar}.len = length;
 			buffer += length;
 			${repeated_increment_count}
 			${has_value_set_true}
