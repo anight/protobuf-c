@@ -23,6 +23,10 @@ int main(int argc, char* argv[]) {
   int i;
   char *out_dir = 0;
   for (i = 1; i < argc; i++) {
+    if (!strncmp(argv[i], "--plugin=protoc-c-gen-c-fast=", 29)) {
+      /* the plugin was specified in argv: turn off magic */
+      break;
+    }
     if (!strncmp(argv[i], "--c_out=", 8)) {
       char *colon = strchr(argv[i], ':');
       if (colon) {

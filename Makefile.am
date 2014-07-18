@@ -156,11 +156,12 @@ t_generated_code2_cxx_generate_packed_data_CXXFLAGS = \
 t_generated_code2_cxx_generate_packed_data_LDADD = \
 	$(protobuf_LIBS)
 
-t/test.pb-c.c t/test.pb-c.h: $(top_builddir)/protoc-c/protoc-c$(EXEEXT) $(top_srcdir)/t/test.proto
-	$(AM_V_GEN)$(top_builddir)/protoc-c/protoc-c$(EXEEXT) -I$(top_srcdir) --c_out=$(top_builddir) $(top_srcdir)/t/test.proto
-
-t/test-full.pb-c.c t/test-full.pb-c.h: $(top_builddir)/protoc-c/protoc-c$(EXEEXT) $(top_srcdir)/t/test-full.proto
-	$(AM_V_GEN)$(top_builddir)/protoc-c/protoc-c$(EXEEXT) -I$(top_srcdir) --c_out=$(top_builddir) $(top_srcdir)/t/test-full.proto
+t/%.pb-c.c t/%.pb-c.h: $(top_srcdir)/t/%.proto $(top_builddir)/protoc-c/protoc-c$(EXEEXT) $(top_srcdir)/scripts/protoc-c-gen-c-fast
+	$(AM_V_GEN)$(top_builddir)/protoc-c/protoc-c$(EXEEXT) -I$(top_srcdir) \
+		--plugin=protoc-c-gen-c-fast=$(top_srcdir)/scripts/protoc-c-gen-c-fast \
+		--c_out=$(top_builddir) \
+		--c-fast_out=$(top_builddir) \
+		$<
 
 t/test-full.pb.cc t/test-full.pb.h: @PROTOC@ $(top_srcdir)/t/test-full.proto
 	$(AM_V_GEN)@PROTOC@ -I$(top_srcdir) --cpp_out=$(top_builddir) $(top_srcdir)/t/test-full.proto
