@@ -383,6 +383,18 @@ class _base(object):
 			return self.render("${field_full_name}__default_value_data")
 		return self.render("${field_full_name}__default_value")
 
+	def optional_needs_packing(self):
+		if not self.is_optional():
+			raise Exception("method called for non-optional field")
+		conditions = []
+		if self.type_name in ('string', 'submessage'):
+			conditions.append("${scalar} != NULL")
+		else:
+			conditions.append("${has}")
+		if self.type_name == 'string' and self.has_default_value():
+			conditions.append("${scalar} != ${default_value}")
+		return self.render(" && ".join(conditions))
+
 	def repeated_check_resize(self):
 		if not self.is_repeated():
 			return ""
@@ -912,19 +924,12 @@ class Message(object):
 					}
 				""", d))
 			elif f.is_optional():
-				conditions = []
-				if f.type_name in ('string', 'submessage'):
-					conditions.append("${scalar} != NULL")
-				else:
-					conditions.append("${has}")
-				if f.type_name == 'string' and f.has_default_value():
-					conditions.append("${scalar} != ${default_value}")
 				out.append(f.render("""
-					if (${conditions}) {
+					if (${optional_needs_packing}) {
 						sz += ${name}__tag_size;
 						sz += ${get_packed_size};
 					}
-				""", {"conditions": " && ".join(conditions)}))
+				"""))
 			else:
 				out.append(f.render("""
 					sz += ${name}__tag_size;
