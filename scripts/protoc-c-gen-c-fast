@@ -908,21 +908,22 @@ class Message(object):
 
 		for f in self.fields:
 			if f.is_repeated():
-				d = {}
 				if f.is_packed():
-					d['header_size'] = '${name}__tag_size'
-					d['payload_length_varint'] = 'sz += uint32_size(rv);'
+					out.append(f.render("""
+						if (${number} > 0) {
+							sz += ${name}__tag_size;
+							${repeated_get_packed_size}
+							sz += uint32_size(rv) + rv;
+						}
+					"""))
 				else:
-					d['header_size'] = '${name}__tag_size * ${number}'
-					d['payload_length_varint'] = ''
-				out.append(f.render("""
-					if (${number} > 0) {
-						sz += ${header_size};
-						${repeated_get_packed_size}
-						${payload_length_varint}
-						sz += rv;
-					}
-				""", d))
+					out.append(f.render("""
+						if (${number} > 0) {
+							sz += ${name}__tag_size * ${number};
+							${repeated_get_packed_size}
+							sz += rv;
+						}
+					"""))
 			elif f.is_optional():
 				out.append(f.render("""
 					if (${optional_needs_packing}) {
