@@ -598,7 +598,7 @@ class _sfixed32(_fixed32):
 class _float(_fixed32):
 	c_type = "float"
 	read_convert_type = "(uint32_t *)"
-	wire_pack = "fixed32_pack(*(uint32_t *)&${scalar}, p)"
+	wire_pack = "fixed32_pack_p(&${scalar}, p)"
 
 @field
 class _fixed64(_base):
@@ -619,7 +619,7 @@ class _sfixed64(_fixed64):
 class _double(_fixed64):
 	c_type = "double"
 	read_convert_type = "(uint64_t *)"
-	wire_pack = "fixed64_pack(*(uint64_t *)&${scalar}, p)"
+	wire_pack = "fixed64_pack_p(&${scalar}, p)"
 
 @field
 class _string(_base):

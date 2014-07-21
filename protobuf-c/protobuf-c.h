@@ -1750,6 +1750,14 @@ fixed32_pack(uint32_t value, void *out)
 	return 4;
 }
 
+
+/* workaround for "dereferencing type-punned pointer will break strict-aliasing rules" */
+static inline size_t
+fixed32_pack_p(const void *value, void *out)
+{
+	return fixed32_pack(* (const uint32_t *) value, out);
+}
+
 /**
  * Pack a 64-bit quantity in little-endian byte order. Used for protobuf wire
  * types fixed64, sfixed64, double. Similar to "htole64".
@@ -1775,6 +1783,14 @@ fixed64_pack(uint64_t value, void *out)
 		fixed32_pack(value >> 32, ((char *) out) + 4);
 	}
 	return 8;
+}
+
+
+/* workaround for "dereferencing type-punned pointer will break strict-aliasing rules" */
+static inline size_t
+fixed64_pack_p(const void *value, void *out)
+{
+	return fixed64_pack(* (const uint64_t *) value, out);
 }
 
 /**
