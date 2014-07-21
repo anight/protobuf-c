@@ -51,7 +51,10 @@ size_t ${message_type}__pack
                       uint8_t *out)
 {
 	assert(message->base.descriptor == &${message_type}__descriptor);
-	return protobuf_c_message_pack_slow(&message->base, out);
+	uint8_t *p = out;
+	${pack__additional_variables}
+	${pack_fields}
+	return p - out;
 }
 
 size_t ${message_type}__pack_to_buffer
@@ -383,6 +386,13 @@ class _base(object):
 			return self.render("${field_full_name}__default_value_data")
 		return self.render("${field_full_name}__default_value")
 
+	def pack_with_length_prediction(self):
+		if self.is_packed() and self.wire_type == 0:
+			return True
+		if self.type_name == 'submessage':
+			return True
+		return False
+
 	def optional_needs_packing(self):
 		if not self.is_optional():
 			raise Exception("method called for non-optional field")
@@ -437,7 +447,7 @@ class _base(object):
 				${repeated_increment_count}
 			""")
 		return self.render("""
-			if ((buffer=${read_function}(${read_convert_type}&(${scalar}), buffer, buffer_end)) == NULL) return PROTOBUF_C__WRONG_MESSAGE;
+			if ((buffer=${read_function}(${read_convert_type}&${scalar}, buffer, buffer_end)) == NULL) return PROTOBUF_C__WRONG_MESSAGE;
 			${has_value_set_true}
 			${has_required_field}
 		""")
@@ -467,51 +477,107 @@ class _base(object):
 			}
 		""")
 
+	def pack_tag(self):
+		return " ".join( "*p++ = '\\x%x';" % c for c in self.tag() )
+
+	def pack_packed_tag(self):
+		return " ".join( "*p++ = '\\x%x';" % c for c in self.tag_packed() )
+
+	def pack_length_prologue(self):
+		if self.pack_with_length_prediction():
+			if self.type_name == 'submessage':
+				return self.render("""
+					varint_length_p = p;
+					reserved_length = 1;
+					p++;
+				""")
+			else:
+				return self.render("""
+					varint_length_p = p;
+					reserved_length = uint32_size(${number} * ${wire_min_size});
+					p += reserved_length;
+				""")
+		if self.is_packed() and type(self.wire_size) is int:
+			return "p += uint32_pack(${number} * ${wire_size}, p);"
+		return ""
+
+	def pack_length_epilogue(self):
+		if self.pack_with_length_prediction():
+			return self.render("""
+				length = p - (varint_length_p + reserved_length);
+				varint_length = uint32_size(length);
+				if (varint_length != reserved_length) {
+					memmove(varint_length_p + varint_length, varint_length_p + reserved_length, length);
+				}
+				uint32_pack(length, varint_length_p);
+			""")
+		return ""
+
+	def pack_scalar(self):
+		return "p += ${wire_pack};"
+
+	def pack(self):
+		return self.render("""
+			${pack_tag}
+			${pack_length_prologue}
+			${pack_scalar}
+			${pack_length_epilogue}
+		""")
+
 
 class _varint(_base):
 	wire_type = 0
 	c_type = "uint64_t"
+	wire_min_size = 1
 
 @field
 class _int32(_varint):
 	c_type = "int32_t"
 	wire_size = "int32_size(${scalar})"
+	wire_pack = "int32_pack(${scalar}, p)"
 
 @field
 class _uint32(_varint):
 	c_type = "uint32_t"
 	wire_size = "uint32_size(${scalar})"
+	wire_pack = "uint32_pack(${scalar}, p)"
 
 @field
 class _sint32(_varint):
 	c_type = "int32_t"
 	wire_size = "sint32_size(${scalar})"
+	wire_pack = "sint32_pack(${scalar}, p)"
 
 @field
 class _int64(_varint):
 	c_type = "int64_t"
 	wire_size = "uint64_size(${scalar})"
+	wire_pack = "uint64_pack(${scalar}, p)"
 
 @field
 class _uint64(_varint):
 	c_type = "uint64_t"
 	wire_size = "uint64_size(${scalar})"
+	wire_pack = "uint64_pack(${scalar}, p)"
 
 @field
 class _sint64(_varint):
 	c_type = "int64_t"
 	wire_size = "sint64_size(${scalar})"
+	wire_pack = "sint64_pack(${scalar}, p)"
 
 @field
 class _bool(_varint):
 	wire_size = 1
 	c_type = "protobuf_c_boolean"
+	wire_pack = "boolean_pack(${scalar}, p)"
 
 @field
 class _enum(_varint):
 	c_type = "int"
 	read_convert_type = "(int *)"
-	wire_size = "uint32_size((uint32_t)(${scalar}))"
+	wire_size = "uint32_size((uint32_t)${scalar})"
+	wire_pack = "uint32_pack((uint32_t)${scalar}, p)"
 
 @field
 class _fixed32(_base):
@@ -519,16 +585,20 @@ class _fixed32(_base):
 	wire_size = 4
 	c_type = "uint32_t"
 	read_function = "read_fixed32"
+	wire_pack = "fixed32_pack(${scalar}, p)"
+	wire_min_size = 4
 
 @field
 class _sfixed32(_fixed32):
 	c_type = "int32_t"
 	read_convert_type = "(uint32_t *)"
+	wire_pack = "fixed32_pack((uint32_t)${scalar}, p)"
 
 @field
 class _float(_fixed32):
 	c_type = "float"
 	read_convert_type = "(uint32_t *)"
+	wire_pack = "fixed32_pack(*(uint32_t *)&${scalar}, p)"
 
 @field
 class _fixed64(_base):
@@ -536,22 +606,27 @@ class _fixed64(_base):
 	wire_size = 8
 	c_type = "uint64_t"
 	read_function = "read_fixed64"
+	wire_pack = "fixed64_pack(${scalar}, p)"
+	wire_min_size = 8
 
 @field
 class _sfixed64(_fixed64):
 	c_type = "int64_t"
 	read_convert_type = "(uint64_t *)"
+	wire_pack = "fixed64_pack((uint64_t)${scalar}, p)"
 
 @field
 class _double(_fixed64):
 	c_type = "double"
 	read_convert_type = "(uint64_t *)"
+	wire_pack = "fixed64_pack(*(uint64_t *)&${scalar}, p)"
 
 @field
 class _string(_base):
 	wire_type = 2
 	c_type = "char*"
 	wire_size = "string_size(${scalar})"
+	wire_pack = "string_pack(${scalar}, p)"
 
 	def read(self):
 		return self.render("""
@@ -584,6 +659,7 @@ class _submessage(_base):
 	"""
 	wire_type = 2
 	wire_size = "submessage_size(${submessage}__get_packed_size(${scalar}))"
+	wire_pack = "${submessage}__pack(${scalar}, p)"
 
 	def field_type_name(self):
 		if self._field.type_name.startswith('.'):
@@ -658,6 +734,7 @@ class _bytes(_base):
 	wire_type = 2
 	c_type = "ProtobufCBinaryData"
 	wire_size = "bytes_size(${scalar})"
+	wire_pack = "binary_data_pack(&${scalar}, p)"
 
 	def read(self):
 		return self.render("""
@@ -757,6 +834,12 @@ class Message(object):
 				return True
 		return False
 
+	def pack_uses_length_prediction_trick(self):
+		for f in self.fields:
+			if f.pack_with_length_prediction():
+				return True
+		return False
+
 	def merge_unpack__additional_variables(self):
 		out = []
 		if self.has_packable_fields():
@@ -783,6 +866,15 @@ class Message(object):
 		if self.has_repeated_fields():
 			return self.render("\n".join( ["unsigned i;", "size_t rv;"] ))
 		return ""
+
+	def pack__additional_variables(self):
+		out = []
+		if self.pack_uses_length_prediction_trick():
+			out.append("uint8_t *varint_length_p;")
+			out.append("size_t varint_length, length, reserved_length;")
+		if self.has_repeated_fields():
+			out.append("unsigned i;")
+		return self.render("\n".join(out))
 
 	def generated_methods(self):
 		return self.render(MESSAGE_GENERATED_METHODS)
@@ -937,6 +1029,41 @@ class Message(object):
 					sz += ${get_packed_size};
 				"""))
 		return render("\n".join(out), self)
+
+	def pack_fields(self):
+		out = []
+		for f in self.fields:
+			if f.is_repeated():
+				if f.is_packed():
+					out.append(f.render("""
+						if (${number} > 0) {
+							${pack_packed_tag}
+							${pack_length_prologue}
+							for (i = 0; i < ${number}; i++) {
+								${pack_scalar}
+							}
+							${pack_length_epilogue}
+						}
+					"""))
+				else:
+					out.append(f.render("""
+						for (i = 0; i < ${number}; i++) {
+							${pack}
+						}
+					"""))
+			elif f.is_optional():
+				out.append(f.render("""
+					if (${optional_needs_packing}) {
+						${pack}
+					}
+				"""))
+			else:
+				out.append(f.render("""
+					${pack}
+				"""))
+
+		return render("\n".join(out), self)
+
 
 class Module(object):
 	def __init__(self, fdp):
