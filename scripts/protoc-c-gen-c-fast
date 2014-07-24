@@ -508,6 +508,7 @@ class _base(object):
 				varint_length = uint32_size(length);
 				if (varint_length != reserved_length) {
 					memmove(varint_length_p + varint_length, varint_length_p + reserved_length, length);
+					p += varint_length - reserved_length;
 				}
 				uint32_pack(length, varint_length_p);
 			""")
