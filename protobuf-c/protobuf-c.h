@@ -806,84 +806,6 @@ protobuf_c_version_number(void);
 #define PROTOBUF_C_MIN_COMPILER_VERSION	2000000
 
 /**
- * Look up a `ProtobufCEnumValue` from a `ProtobufCEnumDescriptor` by name.
- *
- * \param desc
- *      The `ProtobufCEnumDescriptor` object.
- * \param name
- *      The `name` field from the corresponding `ProtobufCEnumValue` object to
- *      match.
- * \return
- *      A `ProtobufCEnumValue` object.
- * \retval NULL
- *      If not found.
- */
-PROTOBUF_C__API
-const ProtobufCEnumValue *
-protobuf_c_enum_descriptor_get_value_by_name(
-	const ProtobufCEnumDescriptor *desc,
-	const char *name);
-
-/**
- * Look up a `ProtobufCEnumValue` from a `ProtobufCEnumDescriptor` by numeric
- * value.
- *
- * \param desc
- *      The `ProtobufCEnumDescriptor` object.
- * \param value
- *      The `value` field from the corresponding `ProtobufCEnumValue` object to
- *      match.
- *
- * \return
- *      A `ProtobufCEnumValue` object.
- * \retval NULL
- *      If not found.
- */
-PROTOBUF_C__API
-const ProtobufCEnumValue *
-protobuf_c_enum_descriptor_get_value(
-	const ProtobufCEnumDescriptor *desc,
-	int value);
-
-/**
- * Look up a `ProtobufCFieldDescriptor` from a `ProtobufCMessageDescriptor` by
- * the name of the field.
- *
- * \param desc
- *      The `ProtobufCMessageDescriptor` object.
- * \param name
- *      The name of the field.
- * \return
- *      A `ProtobufCFieldDescriptor` object.
- * \retval NULL
- *      If not found.
- */
-PROTOBUF_C__API
-const ProtobufCFieldDescriptor *
-protobuf_c_message_descriptor_get_field_by_name(
-	const ProtobufCMessageDescriptor *desc,
-	const char *name);
-
-/**
- * Look up a `ProtobufCFieldDescriptor` from a `ProtobufCMessageDescriptor` by
- * the tag value of the field.
- *
- * \param desc
- *      The `ProtobufCMessageDescriptor` object.
- * \param value
- *      The tag value of the field.
- * \return
- *      A `ProtobufCFieldDescriptor` object.
- * \retval NULL
- *      If not found.
- */
-PROTOBUF_C__API
-const ProtobufCFieldDescriptor *
-protobuf_c_message_descriptor_get_field(
-	const ProtobufCMessageDescriptor *desc,
-	unsigned value);
-
-/**
  * Determine the number of bytes required to store the serialised message.
  *
  * \param message
@@ -891,12 +813,7 @@ protobuf_c_message_descriptor_get_field(
  * \return
  *      Number of bytes.
  */
-PROTOBUF_C__API
-size_t
-protobuf_c_message_get_packed_size_slow(const ProtobufCMessage *message);
-
-static inline
-size_t
+static inline size_t
 protobuf_c_message_get_packed_size(const ProtobufCMessage *message)
 {
 	return message->descriptor->message_get_packed_size(message);
@@ -918,12 +835,7 @@ protobuf_c_message_get_packed_size(const ProtobufCMessage *message)
  * \return
  *      Number of bytes stored in `out`.
  */
-PROTOBUF_C__API
-size_t
-protobuf_c_message_pack_slow(const ProtobufCMessage *message, uint8_t *out);
-
-static inline
-size_t
+static inline size_t
 protobuf_c_message_pack(const ProtobufCMessage *message, uint8_t *out)
 {
 	return message->descriptor->message_pack(message, out);
@@ -942,14 +854,7 @@ protobuf_c_message_pack(const ProtobufCMessage *message, uint8_t *out)
  * \return
  *      Number of bytes passed to the virtual buffer.
  */
-PROTOBUF_C__API
-size_t
-protobuf_c_message_pack_to_buffer_slow(
-	const ProtobufCMessage *message,
-	ProtobufCBuffer *buffer);
-
-static inline
-size_t
+static inline size_t
 protobuf_c_message_pack_to_buffer(
 	const ProtobufCMessage *message,
 	ProtobufCBuffer *buffer)
@@ -974,16 +879,7 @@ protobuf_c_message_pack_to_buffer(
  * \retval NULL
  *      If an error occurred during unpacking.
  */
-PROTOBUF_C__API
-ProtobufCMessage *
-protobuf_c_message_unpack_slow(
-	const ProtobufCMessageDescriptor *descriptor,
-	ProtobufCAllocator *allocator,
-	size_t len,
-	const uint8_t *data);
-
-static inline
-ProtobufCMessage *
+static inline ProtobufCMessage *
 protobuf_c_message_unpack(
 	const ProtobufCMessageDescriptor *descriptor,
 	ProtobufCAllocator *allocator,
@@ -1005,14 +901,7 @@ protobuf_c_message_unpack(
  *      `ProtobufCAllocator` to use for memory deallocation. May be NULL to
  *      specify the default allocator.
  */
-PROTOBUF_C__API
-void
-protobuf_c_message_free_unpacked_slow(
-	ProtobufCMessage *message,
-	ProtobufCAllocator *allocator);
-
-static inline
-void
+static inline void
 protobuf_c_message_free_unpacked(
 	ProtobufCMessage *message,
 	ProtobufCAllocator *allocator)
@@ -1031,10 +920,6 @@ protobuf_c_message_free_unpacked(
  * \retval FALSE
  *      Message is invalid.
  */
-PROTOBUF_C__API
-protobuf_c_boolean
-protobuf_c_message_check_slow(const ProtobufCMessage *);
-
 static inline
 protobuf_c_boolean
 protobuf_c_message_check(const ProtobufCMessage *message)
@@ -1053,47 +938,12 @@ protobuf_c_message_check(const ProtobufCMessage *message)
  * \param message
  *      Allocated block of memory of size `descriptor->sizeof_message`.
  */
-PROTOBUF_C__API
-void
-protobuf_c_message_init_slow(
-	const ProtobufCMessageDescriptor *descriptor,
-	ProtobufCMessage *);
-
 static inline
 void
 protobuf_c_message_init(const ProtobufCMessageDescriptor *descriptor, void *message)
 {
 	descriptor->message_init((ProtobufCMessage *) (message));
 }
-
-/**
- * Free a service.
- *
- * \param service
- *      The service object to free.
- */
-PROTOBUF_C__API
-void
-protobuf_c_service_destroy(ProtobufCService *service);
-
-/**
- * Look up a `ProtobufCMethodDescriptor` by name.
- *
- * \param desc
- *      Service descriptor.
- * \param name
- *      Name of the method.
- *
- * \return
- *      A `ProtobufCMethodDescriptor` object.
- * \retval NULL
- *      If not found.
- */
-PROTOBUF_C__API
-const ProtobufCMethodDescriptor *
-protobuf_c_service_descriptor_get_method_by_name(
-	const ProtobufCServiceDescriptor *desc,
-	const char *name);
 
 /**
  * Initialise a `ProtobufCBufferSimple` object.
@@ -1134,33 +984,312 @@ do {                                                                    \
  * \param data
  *      Data to append.
  */
-PROTOBUF_C__API
-void
-protobuf_c_buffer_simple_append(
-	ProtobufCBuffer *buffer,
-	size_t len,
-	const unsigned char *data);
+static inline void
+protobuf_c_buffer_simple_append(ProtobufCBuffer *buffer,
+				size_t len, const uint8_t *data)
+{
+	ProtobufCBufferSimple *simp = (ProtobufCBufferSimple *) buffer;
+	size_t new_len = simp->len + len;
 
-PROTOBUF_C__API
-void
-protobuf_c_service_generated_init(
-	ProtobufCService *service,
-	const ProtobufCServiceDescriptor *descriptor,
-	ProtobufCServiceDestroy destroy);
+	if (new_len > simp->alloced) {
+		size_t new_alloced = simp->alloced * 2;
+		uint8_t *new_data;
 
-PROTOBUF_C__API
-void
-protobuf_c_service_invoke_internal(
-	ProtobufCService *service,
-	unsigned method_index,
-	const ProtobufCMessage *input,
-	ProtobufCClosure closure,
-	void *closure_data);
+		while (new_alloced < new_len)
+			new_alloced += new_alloced;
+		new_data = (uint8_t *) malloc(new_alloced);
+		if (!new_data)
+			return;
+		memcpy(new_data, simp->data, simp->len);
+		if (simp->must_free_data)
+			free(simp->data);
+		else
+			simp->must_free_data = 1;
+		simp->data = new_data;
+		simp->alloced = new_alloced;
+	}
+	memcpy(simp->data + simp->len, data, len);
+	simp->len = new_len;
+}
 
 /**@}*/
 
+/* === services === */
+
+typedef void (*GenericHandler) (void *service,
+				const ProtobufCMessage *input,
+				ProtobufCClosure closure,
+				void *closure_data);
+
+static inline void
+protobuf_c_service_invoke_internal(ProtobufCService *service,
+				   unsigned method_index,
+				   const ProtobufCMessage *input,
+				   ProtobufCClosure closure,
+				   void *closure_data)
+{
+	GenericHandler *handlers;
+	GenericHandler handler;
+
+	/*
+	 * Verify that method_index is within range. If this fails, you are
+	 * likely invoking a newly added method on an old service. (Although
+	 * other memory corruption bugs can cause this assertion too.)
+	 */
+	assert(method_index < service->descriptor->n_methods);
+
+	/*
+	 * Get the array of virtual methods (which are enumerated by the
+	 * generated code).
+	 */
+	handlers = (GenericHandler *) (service + 1);
+
+	/*
+	 * Get our method and invoke it.
+	 * \todo Seems like handler == NULL is a situation that needs handling.
+	 */
+	handler = handlers[method_index];
+	(*handler)(service, input, closure, closure_data);
+}
+
+static inline void
+protobuf_c_service_generated_init(ProtobufCService *service,
+				  const ProtobufCServiceDescriptor *descriptor,
+				  ProtobufCServiceDestroy destroy)
+{
+	assert(descriptor->magic == PROTOBUF_C__SERVICE_DESCRIPTOR_MAGIC);
+	service->descriptor = descriptor;
+	service->destroy = destroy;
+	service->invoke = protobuf_c_service_invoke_internal;
+	memset(service + 1, 0, descriptor->n_methods * sizeof(GenericHandler));
+}
+
+/**
+ * Free a service.
+ *
+ * \param service
+ *      The service object to free.
+ */
+static inline void
+protobuf_c_service_destroy(ProtobufCService *service)
+{
+	service->destroy(service);
+}
+
+/* --- querying the descriptors --- */
+
+static inline int
+int_range_lookup(unsigned n_ranges, const ProtobufCIntRange *ranges, int value)
+{
+	unsigned n;
+	unsigned start;
+
+	if (n_ranges == 0)
+		return -1;
+	start = 0;
+	n = n_ranges;
+	while (n > 1) {
+		unsigned mid = start + n / 2;
+
+		if (value < ranges[mid].start_value) {
+			n = mid - start;
+		} else if (value >= ranges[mid].start_value +
+			   (int) (ranges[mid + 1].orig_index -
+				  ranges[mid].orig_index))
+		{
+			unsigned new_start = mid + 1;
+			n = start + n - new_start;
+			start = new_start;
+		} else
+			return (value - ranges[mid].start_value) +
+			    ranges[mid].orig_index;
+	}
+	if (n > 0) {
+		unsigned start_orig_index = ranges[start].orig_index;
+		unsigned range_size =
+			ranges[start + 1].orig_index - start_orig_index;
+
+		if (ranges[start].start_value <= value &&
+		    value < (int) (ranges[start].start_value + range_size))
+		{
+			return (value - ranges[start].start_value) +
+			    start_orig_index;
+		}
+	}
+	return -1;
+}
 
 
+/**
+ * Look up a `ProtobufCEnumValue` from a `ProtobufCEnumDescriptor` by name.
+ *
+ * \param desc
+ *      The `ProtobufCEnumDescriptor` object.
+ * \param name
+ *      The `name` field from the corresponding `ProtobufCEnumValue` object to
+ *      match.
+ * \return
+ *      A `ProtobufCEnumValue` object.
+ * \retval NULL
+ *      If not found.
+ */
+static inline const ProtobufCEnumValue *
+protobuf_c_enum_descriptor_get_value_by_name(const ProtobufCEnumDescriptor *desc,
+					     const char *name)
+{
+	unsigned start = 0;
+	unsigned count = desc->n_value_names;
+
+	while (count > 1) {
+		unsigned mid = start + count / 2;
+		int rv = strcmp(desc->values_by_name[mid].name, name);
+		if (rv == 0)
+			return desc->values + desc->values_by_name[mid].index;
+		else if (rv < 0) {
+			count = start + count - (mid + 1);
+			start = mid + 1;
+		} else
+			count = mid - start;
+	}
+	if (count == 0)
+		return NULL;
+	if (strcmp(desc->values_by_name[start].name, name) == 0)
+		return desc->values + desc->values_by_name[start].index;
+	return NULL;
+}
+
+/**
+ * Look up a `ProtobufCEnumValue` from a `ProtobufCEnumDescriptor` by numeric
+ * value.
+ *
+ * \param desc
+ *      The `ProtobufCEnumDescriptor` object.
+ * \param value
+ *      The `value` field from the corresponding `ProtobufCEnumValue` object to
+ *      match.
+ *
+ * \return
+ *      A `ProtobufCEnumValue` object.
+ * \retval NULL
+ *      If not found.
+ */
+static inline const ProtobufCEnumValue *
+protobuf_c_enum_descriptor_get_value(const ProtobufCEnumDescriptor *desc,
+				     int value)
+{
+	int rv = int_range_lookup(desc->n_value_ranges, desc->value_ranges, value);
+	if (rv < 0)
+		return NULL;
+	return desc->values + rv;
+}
+
+/**
+ * Look up a `ProtobufCFieldDescriptor` from a `ProtobufCMessageDescriptor` by
+ * the name of the field.
+ *
+ * \param desc
+ *      The `ProtobufCMessageDescriptor` object.
+ * \param name
+ *      The name of the field.
+ * \return
+ *      A `ProtobufCFieldDescriptor` object.
+ * \retval NULL
+ *      If not found.
+ */
+static inline const ProtobufCFieldDescriptor *
+protobuf_c_message_descriptor_get_field_by_name(const ProtobufCMessageDescriptor *desc,
+						const char *name)
+{
+	unsigned start = 0;
+	unsigned count = desc->n_fields;
+	const ProtobufCFieldDescriptor *field;
+
+	while (count > 1) {
+		unsigned mid = start + count / 2;
+		int rv;
+		field = desc->fields + desc->fields_sorted_by_name[mid];
+		rv = strcmp(field->name, name);
+		if (rv == 0)
+			return field;
+		else if (rv < 0) {
+			count = start + count - (mid + 1);
+			start = mid + 1;
+		} else
+			count = mid - start;
+	}
+	if (count == 0)
+		return NULL;
+	field = desc->fields + desc->fields_sorted_by_name[start];
+	if (strcmp(field->name, name) == 0)
+		return field;
+	return NULL;
+}
+
+/**
+ * Look up a `ProtobufCFieldDescriptor` from a `ProtobufCMessageDescriptor` by
+ * the tag value of the field.
+ *
+ * \param desc
+ *      The `ProtobufCMessageDescriptor` object.
+ * \param value
+ *      The tag value of the field.
+ * \return
+ *      A `ProtobufCFieldDescriptor` object.
+ * \retval NULL
+ *      If not found.
+ */
+static inline const ProtobufCFieldDescriptor *
+protobuf_c_message_descriptor_get_field(const ProtobufCMessageDescriptor *desc,
+					unsigned value)
+{
+	int rv = int_range_lookup(desc->n_field_ranges,desc->field_ranges, value);
+	if (rv < 0)
+		return NULL;
+	return desc->fields + rv;
+}
+
+/**
+ * Look up a `ProtobufCMethodDescriptor` by name.
+ *
+ * \param desc
+ *      Service descriptor.
+ * \param name
+ *      Name of the method.
+ *
+ * \return
+ *      A `ProtobufCMethodDescriptor` object.
+ * \retval NULL
+ *      If not found.
+ */
+static inline const ProtobufCMethodDescriptor *
+protobuf_c_service_descriptor_get_method_by_name(const ProtobufCServiceDescriptor *desc,
+						 const char *name)
+{
+	unsigned start = 0;
+	unsigned count = desc->n_methods;
+
+	while (count > 1) {
+		unsigned mid = start + count / 2;
+		unsigned mid_index = desc->method_indices_by_name[mid];
+		const char *mid_name = desc->methods[mid_index].name;
+		int rv = strcmp(mid_name, name);
+
+		if (rv == 0)
+			return desc->methods + desc->method_indices_by_name[mid];
+		if (rv < 0) {
+			count = start + count - (mid + 1);
+			start = mid + 1;
+		} else {
+			count = mid - start;
+		}
+	}
+	if (count == 0)
+		return NULL;
+	if (strcmp(desc->methods[desc->method_indices_by_name[start]].name, name) == 0)
+		return desc->methods + desc->method_indices_by_name[start];
+	return NULL;
+}
+/**@}*/
 
 
 
