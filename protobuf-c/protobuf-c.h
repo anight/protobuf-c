@@ -1168,6 +1168,16 @@ protobuf_c_service_invoke_internal(
 /** The maximum length of a 64-bit integer in varint encoding. */
 #define MAX_UINT64_ENCODED_SIZE		10
 
+static inline int
+is_big_endian(void)
+{
+    union {
+        uint32_t i;
+        char c[4];
+    } bint = {0x01020304};
+
+    return bint.c[0] == 1;
+}
 
 static inline void* memory_allocate(const size_t size,
       ProtobufCAllocator *allocator) {
@@ -1192,24 +1202,26 @@ static inline void memory_free(void *ptr, ProtobufCAllocator *allocator)
   }
 }
 
-static const int s_endianness = 1;
-
 static inline const uint8_t* read_fixed32(uint32_t* v, const uint8_t* buffer, const uint8_t* buffer_end) {
   if (buffer+4 > buffer_end) return NULL;
-  if (1==*(char*)&(s_endianness)) { // runtime little-endian test 
+  if (!is_big_endian()) {
     *v = *(uint32_t*)buffer;
   } else {
-    *v = ((uint32_t)buffer[0]) | (((uint32_t)buffer[1]) << 8) | (((uint32_t)buffer[2]) << 16) | (((uint32_t)buffer[3]) << 24);
+    *v = ((uint32_t)buffer[0]) | (((uint32_t)buffer[1]) << 8) |
+		(((uint32_t)buffer[2]) << 16) | (((uint32_t)buffer[3]) << 24);
   }
   return buffer+4;
 }
 
 static inline const uint8_t* read_fixed64(uint64_t* v, const uint8_t* buffer, const uint8_t* buffer_end) {
   if (buffer+8 > buffer_end) return NULL;
-  if (1==*(char*)&(s_endianness)) { // runtime little-endian test
+  if (!is_big_endian()) {
     *v = *(uint64_t*)buffer;
   } else {
-    *v = ((uint64_t)buffer[0]) | (((uint64_t)buffer[1]) << 8)              | (((uint64_t)buffer[2]) << 16) | (((uint64_t)buffer[3]) << 24)              | (((uint64_t)buffer[4]) << 32) | (((uint64_t)buffer[5]) << 40)              | (((uint64_t)buffer[6]) << 48) | (((uint64_t)buffer[7]) << 56);
+    *v = ((uint64_t)buffer[0]) | (((uint64_t)buffer[1]) << 8) |
+		(((uint64_t)buffer[2]) << 16) | (((uint64_t)buffer[3]) << 24) |
+		(((uint64_t)buffer[4]) << 32) | (((uint64_t)buffer[5]) << 40) |
+		(((uint64_t)buffer[6]) << 48) | (((uint64_t)buffer[7]) << 56);
   }
   return buffer+8;
 }
@@ -1740,7 +1752,7 @@ sint64_pack(int64_t value, uint8_t *out)
 static inline size_t
 fixed32_pack(uint32_t value, void *out)
 {
-	if (1==*(char*)&(s_endianness)) { // runtime little-endian test
+	if (!is_big_endian()) {
 		memcpy(out, &value, 4);
 	} else {
 		uint8_t *buf = (uint8_t *) out;
@@ -1779,7 +1791,7 @@ fixed32_pack_p(const void *value, void *out)
 static inline size_t
 fixed64_pack(uint64_t value, void *out)
 {
-	if (1==*(char*)&(s_endianness)) { // runtime little-endian test
+	if (!is_big_endian()) {
 		memcpy(out, &value, 8);
 	} else {
 		fixed32_pack(value, out);
