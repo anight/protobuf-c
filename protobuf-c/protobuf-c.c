@@ -72,9 +72,6 @@
  * @{
  */
 
-/** The maximum length of a 64-bit integer in varint encoding. */
-#define MAX_UINT64_ENCODED_SIZE		10
-
 #ifndef PROTOBUF_C_UNPACK_ERROR
 # define PROTOBUF_C_UNPACK_ERROR(...)
 #endif

@@ -185,6 +185,7 @@ size_t foo__bar__baz_bah__pack_to_buffer
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
 
 #ifdef __cplusplus
 # define PROTOBUF_C__BEGIN_DECLS	extern "C" {
@@ -1164,6 +1165,8 @@ protobuf_c_service_invoke_internal(
 
 
 
+/** The maximum length of a 64-bit integer in varint encoding. */
+#define MAX_UINT64_ENCODED_SIZE		10
 
 
 static inline void* memory_allocate(const size_t size,

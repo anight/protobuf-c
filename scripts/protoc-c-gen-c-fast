@@ -51,8 +51,8 @@ size_t ${message_type}__pack
                       uint8_t *out)
 {
 	assert(message->base.descriptor == &${message_type}__descriptor);
-	uint8_t *p = out;
 	${pack__additional_variables}
+	uint8_t *p = out;
 	${pack_fields}
 	return p - out;
 }
@@ -62,7 +62,10 @@ size_t ${message_type}__pack_to_buffer
                       ProtobufCBuffer *buffer)
 {
 	assert(message->base.descriptor == &${message_type}__descriptor);
-	return protobuf_c_message_pack_to_buffer_slow(&message->base, buffer);
+	${pack_to_buffer__additional_variables}
+	size_t sz = 0;
+	${pack_to_buffer_fields}
+	return sz;
 }
 
 int ${message_type}__unpack_merge
@@ -515,7 +518,8 @@ class _base(object):
 		return ""
 
 	def pack_scalar(self):
-		return "p += ${wire_pack};"
+		wire_pack = self.render(self.wire_pack, {'outptr': 'p'})
+		return render("p += ${wire_pack};", {'wire_pack': wire_pack})
 
 	def pack(self):
 		return self.render("""
@@ -525,6 +529,35 @@ class _base(object):
 			${pack_length_epilogue}
 		""")
 
+	def pack_to_buffer_tag(self):
+		out = []
+		for i, c in enumerate(self.tag()):
+			out.append("scratch[%u] = '\\x%x';" % (i, c))
+		return self.render("\n".join(out))
+
+	def pack_to_buffer_packed_tag(self):
+		out = []
+		for i, c in enumerate(self.tag_packed()):
+			out.append("scratch[%u] = '\\x%x';" % (i, c))
+		return self.render("\n".join(out))
+
+	def pack_to_buffer_scalar(self):
+		return self.render("""
+			rv = ${tag_size} + ${wire_pack};
+			buffer->append(buffer, rv, scratch); sz += rv;
+		""", {'outptr': 'scratch + ${tag_size}'})
+
+	def pack_to_buffer_packed(self):
+		return self.render("""
+			rv = ${wire_pack};
+			buffer->append(buffer, rv, scratch);
+		""", {'outptr': 'scratch'})
+
+	def pack_to_buffer(self):
+		return self.render("""
+			${pack_to_buffer_tag}
+			${pack_to_buffer_scalar}
+		""")
 
 class _varint(_base):
 	wire_type = 0
@@ -535,50 +568,50 @@ class _varint(_base):
 class _int32(_varint):
 	c_type = "int32_t"
 	wire_size = "int32_size(${scalar})"
-	wire_pack = "int32_pack(${scalar}, p)"
+	wire_pack = "int32_pack(${scalar}, ${outptr})"
 
 @field
 class _uint32(_varint):
 	c_type = "uint32_t"
 	wire_size = "uint32_size(${scalar})"
-	wire_pack = "uint32_pack(${scalar}, p)"
+	wire_pack = "uint32_pack(${scalar}, ${outptr})"
 
 @field
 class _sint32(_varint):
 	c_type = "int32_t"
 	wire_size = "sint32_size(${scalar})"
-	wire_pack = "sint32_pack(${scalar}, p)"
+	wire_pack = "sint32_pack(${scalar}, ${outptr})"
 
 @field
 class _int64(_varint):
 	c_type = "int64_t"
 	wire_size = "uint64_size(${scalar})"
-	wire_pack = "uint64_pack(${scalar}, p)"
+	wire_pack = "uint64_pack(${scalar}, ${outptr})"
 
 @field
 class _uint64(_varint):
 	c_type = "uint64_t"
 	wire_size = "uint64_size(${scalar})"
-	wire_pack = "uint64_pack(${scalar}, p)"
+	wire_pack = "uint64_pack(${scalar}, ${outptr})"
 
 @field
 class _sint64(_varint):
 	c_type = "int64_t"
 	wire_size = "sint64_size(${scalar})"
-	wire_pack = "sint64_pack(${scalar}, p)"
+	wire_pack = "sint64_pack(${scalar}, ${outptr})"
 
 @field
 class _bool(_varint):
 	wire_size = 1
 	c_type = "protobuf_c_boolean"
-	wire_pack = "boolean_pack(${scalar}, p)"
+	wire_pack = "boolean_pack(${scalar}, ${outptr})"
 
 @field
 class _enum(_varint):
 	c_type = "int"
 	read_convert_type = "(int *)"
 	wire_size = "uint32_size((uint32_t)${scalar})"
-	wire_pack = "uint32_pack((uint32_t)${scalar}, p)"
+	wire_pack = "uint32_pack((uint32_t)${scalar}, ${outptr})"
 
 @field
 class _fixed32(_base):
@@ -586,20 +619,20 @@ class _fixed32(_base):
 	wire_size = 4
 	c_type = "uint32_t"
 	read_function = "read_fixed32"
-	wire_pack = "fixed32_pack(${scalar}, p)"
+	wire_pack = "fixed32_pack(${scalar}, ${outptr})"
 	wire_min_size = 4
 
 @field
 class _sfixed32(_fixed32):
 	c_type = "int32_t"
 	read_convert_type = "(uint32_t *)"
-	wire_pack = "fixed32_pack((uint32_t)${scalar}, p)"
+	wire_pack = "fixed32_pack((uint32_t)${scalar}, ${outptr})"
 
 @field
 class _float(_fixed32):
 	c_type = "float"
 	read_convert_type = "(uint32_t *)"
-	wire_pack = "fixed32_pack_p(&${scalar}, p)"
+	wire_pack = "fixed32_pack_p(&${scalar}, ${outptr})"
 
 @field
 class _fixed64(_base):
@@ -607,27 +640,27 @@ class _fixed64(_base):
 	wire_size = 8
 	c_type = "uint64_t"
 	read_function = "read_fixed64"
-	wire_pack = "fixed64_pack(${scalar}, p)"
+	wire_pack = "fixed64_pack(${scalar}, ${outptr})"
 	wire_min_size = 8
 
 @field
 class _sfixed64(_fixed64):
 	c_type = "int64_t"
 	read_convert_type = "(uint64_t *)"
-	wire_pack = "fixed64_pack((uint64_t)${scalar}, p)"
+	wire_pack = "fixed64_pack((uint64_t)${scalar}, ${outptr})"
 
 @field
 class _double(_fixed64):
 	c_type = "double"
 	read_convert_type = "(uint64_t *)"
-	wire_pack = "fixed64_pack_p(&${scalar}, p)"
+	wire_pack = "fixed64_pack_p(&${scalar}, ${outptr})"
 
 @field
 class _string(_base):
 	wire_type = 2
 	c_type = "char*"
 	wire_size = "string_size(${scalar})"
-	wire_pack = "string_pack(${scalar}, p)"
+	wire_pack = "string_pack(${scalar}, ${outptr})"
 
 	def read(self):
 		return self.render("""
@@ -650,6 +683,15 @@ class _string(_base):
 				""")
 		return self.render("memory_free(${scalar}, allocator);")
 
+	def pack_to_buffer_scalar(self):
+		return self.render("""
+			len = strlen(${scalar});
+			rv = ${tag_size} + uint32_pack(len, scratch + ${tag_size});
+			buffer->append(buffer, rv, scratch);
+			buffer->append(buffer, len, (const uint8_t *) ${scalar});
+			sz += rv + len;
+		""")
+
 @field
 class _submessage(_base):
 	"""
@@ -660,7 +702,7 @@ class _submessage(_base):
 	"""
 	wire_type = 2
 	wire_size = "submessage_size(${submessage}__get_packed_size(${scalar}))"
-	wire_pack = "${submessage}__pack(${scalar}, p)"
+	wire_pack = "${submessage}__pack(${scalar}, ${outptr})"
 
 	def field_type_name(self):
 		if self._field.type_name.startswith('.'):
@@ -730,12 +772,23 @@ class _submessage(_base):
 	def free(self):
 		return self.render("if (${scalar} != NULL) ${submessage}__free_unpacked(${scalar}, allocator);")
 
+	def pack_to_buffer_scalar(self):
+		return self.render("""
+			simple_buffer = (ProtobufCBufferSimple) PROTOBUF_C_BUFFER_SIMPLE_INIT(simple_buffer_scratch);
+			len = ${submessage}__pack_to_buffer(${scalar}, &simple_buffer.base);
+			rv = ${tag_size} + uint32_pack(len, scratch + ${tag_size});
+			buffer->append(buffer, rv, scratch);
+			buffer->append(buffer, len, simple_buffer.data);
+			sz += rv + len;
+			PROTOBUF_C_BUFFER_SIMPLE_CLEAR(&simple_buffer);
+		""")
+
 @field
 class _bytes(_base):
 	wire_type = 2
 	c_type = "ProtobufCBinaryData"
 	wire_size = "bytes_size(${scalar})"
-	wire_pack = "binary_data_pack(&${scalar}, p)"
+	wire_pack = "binary_data_pack(&${scalar}, ${outptr})"
 
 	def read(self):
 		return self.render("""
@@ -758,6 +811,14 @@ class _bytes(_base):
 					memory_free(${scalar}.data, allocator);
 				""")
 		return self.render("memory_free(${scalar}.data, allocator);")
+
+	def pack_to_buffer_scalar(self):
+		return self.render("""
+			rv = ${tag_size} + uint32_pack(${scalar}.len, scratch + ${tag_size});
+			buffer->append(buffer, rv, scratch);
+			buffer->append(buffer, ${scalar}.len, (const uint8_t *) ${scalar}.data);
+			sz += rv + ${scalar}.len;
+		""")
 
 
 #####################
@@ -829,6 +890,12 @@ class Message(object):
 				return True
 		return False
 
+	def has_packed_fields(self):
+		for f in self.fields:
+			if f.is_packed():
+				return True
+		return False
+
 	def has_field_type(self, types):
 		for f in self.fields:
 			if f.type_name in types:
@@ -875,6 +942,20 @@ class Message(object):
 			out.append("size_t varint_length, length, reserved_length;")
 		if self.has_repeated_fields():
 			out.append("unsigned i;")
+		return self.render("\n".join(out))
+
+	def pack_to_buffer__additional_variables(self):
+		out = []
+		if self.has_repeated_fields():
+			out.append("unsigned i;")
+		if len(self.fields) > 0:
+			out.append("size_t rv;")
+			out.append("uint8_t scratch[MAX_UINT64_ENCODED_SIZE * 2];")
+		if self.has_field_type(('submessage',)):
+			out.append("uint8_t simple_buffer_scratch[256];")
+			out.append("ProtobufCBufferSimple simple_buffer;")
+		if self.has_packed_fields() or self.has_field_type(('string', 'submessage')):
+			out.append("size_t len;")
 		return self.render("\n".join(out))
 
 	def generated_methods(self):
@@ -950,7 +1031,7 @@ class Message(object):
 				out.append(f.render("memory_free(${vector}, allocator);"));
 			elif f.is_complex():
 				out.append(f.render("${free}"));
-		return render("\n".join(out), self)
+		return self.render("\n".join(out))
 
 	def check_fields(self):
 		out = []
@@ -990,7 +1071,7 @@ class Message(object):
 						out.append(f.render("if (${scalar}.len > 0 && ${scalar}.data == NULL) return 0;"))
 					else:
 						out.append(f.render("if (${has} && ${scalar}.len > 0 && ${scalar}.data == NULL) return 0;"))
-		return render("\n".join(out), self)
+		return self.render("\n".join(out))
 
 	def get_packed_size_fields(self):
 		out = []
@@ -1029,7 +1110,7 @@ class Message(object):
 					sz += ${name}__tag_size;
 					sz += ${get_packed_size};
 				"""))
-		return render("\n".join(out), self)
+		return self.render("\n".join(out))
 
 	def pack_fields(self):
 		out = []
@@ -1063,8 +1144,44 @@ class Message(object):
 					${pack}
 				"""))
 
-		return render("\n".join(out), self)
+		return self.render("\n".join(out))
 
+	def pack_to_buffer_fields(self):
+		out = []
+		for f in self.fields:
+			if f.is_repeated():
+				if f.is_packed():
+					out.append(f.render("""
+						if (${number} > 0) {
+							${pack_to_buffer_packed_tag}
+							${repeated_get_packed_size}
+							len = ${tag_size} + uint32_pack(rv, scratch + ${tag_size});
+							buffer->append(buffer, len, scratch);
+							sz += len + rv;
+							for (i = 0; i < ${number}; i++) {
+								${pack_to_buffer_packed}
+							}
+						}
+					"""))
+					pass
+				else:
+					out.append(f.render("""
+						for (i = 0; i < ${number}; i++) {
+							${pack_to_buffer}
+						}
+					"""))
+			elif f.is_optional():
+				out.append(f.render("""
+					if (${optional_needs_packing}) {
+						${pack_to_buffer}
+					}
+				"""))
+			else:
+				out.append(f.render("""
+					${pack_to_buffer}
+				"""))
+
+		return self.render("\n".join(out))
 
 class Module(object):
 	def __init__(self, fdp):
