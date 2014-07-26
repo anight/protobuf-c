@@ -1831,15 +1831,10 @@ boolean_pack(protobuf_c_boolean value, uint8_t *out)
 static inline size_t
 string_pack(const char *str, uint8_t *out)
 {
-	if (str == NULL) {
-		out[0] = 0;
-		return 1;
-	} else {
-		size_t len = strlen(str);
-		size_t rv = uint32_pack(len, out);
-		memcpy(out + rv, str, len);
-		return rv + len;
-	}
+	size_t len = strlen(str);
+	size_t rv = uint32_pack(len, out);
+	memcpy(out + rv, str, len);
+	return rv + len;
 }
 
 /**
