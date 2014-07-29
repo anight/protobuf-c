@@ -30,40 +30,10 @@ CODE_COVERAGE_LCOV_OPTIONS = --no-external
 CODE_COVERAGE_IGNORE_PATTERN = "$(abs_top_builddir)/t/*"
 @CODE_COVERAGE_RULES@
 
-#
-# libprotobuf-c
-#
-
-LIBPROTOBUF_C_CURRENT=2
-LIBPROTOBUF_C_REVISION=0
-LIBPROTOBUF_C_AGE=0
-
-lib_LTLIBRARIES += \
-	protobuf-c/libprotobuf-c.la
 
 nobase_include_HEADERS += \
 	protobuf-c/protobuf-c.h
 
-protobuf_c_libprotobuf_c_la_SOURCES = \
-	protobuf-c/protobuf-c.c \
-	protobuf-c/protobuf-c.h
-
-protobuf_c_libprotobuf_c_la_LDFLAGS = $(AM_LDFLAGS) \
-	-version-info $(LIBPROTOBUF_C_CURRENT):$(LIBPROTOBUF_C_REVISION):$(LIBPROTOBUF_C_AGE) \
-	-no-undefined
-
-if HAVE_LD_VERSION_SCRIPT
-protobuf_c_libprotobuf_c_la_LDFLAGS += \
-    -Wl,--version-script=$(top_srcdir)/protobuf-c/libprotobuf-c.sym
-else
-protobuf_c_libprotobuf_c_la_LDFLAGS += \
-    -export-symbols-regex "^(protobuf_c_[a-z].*)"
-endif
-EXTRA_DIST += protobuf-c/libprotobuf-c.sym
-
-pkgconfig_DATA += protobuf-c/libprotobuf-c.pc
-CLEANFILES += protobuf-c/libprotobuf-c.pc
-EXTRA_DIST += protobuf-c/libprotobuf-c.pc.in
 
 #
 # protoc-c
@@ -123,25 +93,19 @@ LOG_COMPILER = $(VALGRIND)
 
 check_PROGRAMS += \
 	t/generated-code/test-generated-code \
-	t/generated-code2/test-generated-code2 \
-	t/version/version
+	t/generated-code2/test-generated-code2
 
 TESTS += \
 	t/generated-code/test-generated-code \
-	t/generated-code2/test-generated-code2 \
-	t/version/version
+	t/generated-code2/test-generated-code2
 
 t_generated_code_test_generated_code_SOURCES = \
 	t/generated-code/test-generated-code.c \
 	t/test.pb-c.c
-t_generated_code_test_generated_code_LDADD = \
-	protobuf-c/libprotobuf-c.la
 
 t_generated_code2_test_generated_code2_SOURCES = \
 	t/generated-code2/test-generated-code2.c \
 	t/test-full.pb-c.c
-t_generated_code2_test_generated_code2_LDADD = \
-	protobuf-c/libprotobuf-c.la
 
 noinst_PROGRAMS += \
 	t/generated-code2/cxx-generate-packed-data
@@ -174,11 +138,6 @@ BUILT_SOURCES += \
 	t/test-full.pb-c.c t/test-full.pb-c.h \
 	t/test-full.pb.cc t/test-full.pb.h \
 	t/generated-code2/test-full-cxx-output.inc
-
-t_version_version_SOURCES = \
-	t/version/version.c
-t_version_version_LDADD = \
-	protobuf-c/libprotobuf-c.la
 
 endif # BUILD_COMPILER
 

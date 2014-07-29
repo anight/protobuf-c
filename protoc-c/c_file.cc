@@ -237,6 +237,10 @@ void FileGenerator::GenerateSource(io::Printer* printer) {
     "filename", file_->name(),
     "basename", StripProto(file_->name()));
 
+  if (file_->message_type_count() > 0) {
+    printer->Print("static ProtobufCAllocator protobuf_c_default_allocator = protobuf_c_default_allocator_init;\n");
+  }
+
 #if 0
   // For each dependency, write a prototype for that dependency's
   // BuildDescriptors() function.  We don't expose these in the header because

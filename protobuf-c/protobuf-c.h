@@ -764,34 +764,29 @@ struct ProtobufCServiceDescriptor {
 	const unsigned			*method_indices_by_name;
 };
 
-extern ProtobufCAllocator protobuf_c_default_allocator;
+static inline void *
+protobuf_c_system_alloc(void *allocator_data, size_t size)
+{
+	return malloc(size);
+}
 
-/**
- * Get the version of the protobuf-c library. Note that this is the version of
- * the library linked against, not the version of the headers compiled against.
- *
- * \return A string containing the version number of protobuf-c.
- */
-PROTOBUF_C__API
-const char *
-protobuf_c_version(void);
 
-/**
- * Get the version of the protobuf-c library. Note that this is the version of
- * the library linked against, not the version of the headers compiled against.
- *
- * \return A 32 bit unsigned integer containing the version number of
- *      protobuf-c, represented in base-10 as (MAJOR*1E6) + (MINOR*1E3) + PATCH.
- */
-PROTOBUF_C__API
-uint32_t
-protobuf_c_version_number(void);
+static inline void
+protobuf_c_system_free(void *allocator_data, void *data)
+{
+	free(data);
+}
+
+#define protobuf_c_default_allocator_init { \
+	.alloc = protobuf_c_system_alloc, \
+	.free = protobuf_c_system_free, \
+}
 
 /**
  * The version of the protobuf-c headers, represented as a string using the same
  * format as protobuf_c_version().
  */
-#define PROTOBUF_C_VERSION		"1.0.0-rc2"
+#define PROTOBUF_C_VERSION		"2.0.0"
 
 /**
  * The version of the protobuf-c headers, represented as an integer using the

@@ -1,14 +1,14 @@
 AC_PREREQ(2.64)
 
 AC_INIT([protobuf-c],
-        [1.0.0-rc2],
+        [2.0.0],
         [https://github.com/protobuf-c/protobuf-c/issues],
         [protobuf-c],
         [https://github.com/protobuf-c/protobuf-c])
 PACKAGE_DESCRIPTION="Protocol Buffers implementation in C"
 AC_SUBST(PACKAGE_DESCRIPTION)
 
-AC_CONFIG_SRCDIR([protobuf-c/protobuf-c.c])
+AC_CONFIG_SRCDIR([protobuf-c/protobuf-c.h])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([foreign 1.11 -Wall -Wno-portability silent-rules subdir-objects])
 AC_PROG_CC_STDC
@@ -22,7 +22,7 @@ AM_SILENT_RULES([yes])
 LT_INIT
 
 AC_CONFIG_HEADERS(config.h)
-AC_CONFIG_FILES([Makefile protobuf-c/libprotobuf-c.pc])
+AC_CONFIG_FILES([Makefile])
 
 AC_CHECK_PROGS([DOXYGEN], [doxygen])
 AM_CONDITIONAL([HAVE_DOXYGEN],
