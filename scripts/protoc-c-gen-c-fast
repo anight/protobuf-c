@@ -419,6 +419,7 @@ class _base(object):
 					void *new_ptr = memory_allocate_copy(2*${number}*sizeof(${c_type}), allocator,
 						(uint8_t*)${vector}, ${number}*sizeof(${c_type}));
 					if (new_ptr == NULL) return PROTOBUF_C__NOT_ENOUGH_MEMORY;
+					memory_free(${vector}, allocator);
 					${vector} = new_ptr;
 				}
 			}
