@@ -287,7 +287,7 @@ class _base(object):
 	@todo: Only repeated fields of primitive numeric types
 	(types which use the varint, 32-bit, or 64-bit wire types) can be declared "packed".
 	"""
-	repeated_init_size = 8
+	repeated_init_size = 16
 	read_convert_type = ""
 
 	def __init__(self, protobuf_field):
