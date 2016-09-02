@@ -1328,6 +1328,27 @@ static inline void memory_free(void *ptr, ProtobufCAllocator *allocator)
   }
 }
 
+static inline int memory_vector_extend_by_one(void **v, size_t n, size_t item_size, ProtobufCAllocator *allocator)
+{
+	const size_t init_size = 16;
+	if (((n-1) & n) == 0) {
+		if (n == 0) {
+			*v = memory_allocate(init_size * item_size, allocator);
+			if (*v == NULL) {
+				return -1;
+			}
+		} else if (n >= 16) {
+			void *new_ptr = memory_allocate_copy(2 * n * item_size, allocator, (const uint8_t *) *v, n * item_size);
+			if (new_ptr == NULL) {
+				return -1;
+			}
+			memory_free(*v, allocator);
+			*v = new_ptr;
+		}
+	}
+	return 0;
+}
+
 static inline const uint8_t* read_fixed32(uint32_t* v, const uint8_t* buffer, const uint8_t* buffer_end)
 {
   if (buffer+4 > buffer_end) return NULL;

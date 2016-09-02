@@ -413,16 +413,8 @@ class _base(object):
 		if not self.is_repeated():
 			return ""
 		return self.render("""
-			if ( ((${number}-1) & (${number})) == 0) {
-				if (${number} == 0) {
-					if ((${vector} = memory_allocate(${repeated_init_size}*sizeof(${c_type}), allocator)) == NULL) return PROTOBUF_C__NOT_ENOUGH_MEMORY;
-				} else if (${number} >= ${repeated_init_size}) {
-					void *new_ptr = memory_allocate_copy(2*${number}*sizeof(${c_type}), allocator,
-						(uint8_t*)${vector}, ${number}*sizeof(${c_type}));
-					if (new_ptr == NULL) return PROTOBUF_C__NOT_ENOUGH_MEMORY;
-					memory_free(${vector}, allocator);
-					${vector} = new_ptr;
-				}
+			if (0 > memory_vector_extend_by_one((void **) &${vector}, ${number}, sizeof(${c_type}), allocator)) {
+				return PROTOBUF_C__NOT_ENOUGH_MEMORY;
 			}
 		""")
 
