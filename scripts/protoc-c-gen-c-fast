@@ -75,7 +75,7 @@ int ${message_type}__unpack_merge
 {
 	assert(message->base.descriptor == &${message_type}__descriptor);
 	const uint8_t *buffer_end = buffer+buffer_size;
-	${merge_unpack__additional_variables}
+	${unpack_merge__additional_variables}
 	${required_fields_init}
 
 	while (buffer < buffer_end) {
@@ -342,6 +342,7 @@ class _base(object):
 		return len(self.tag())
 
 	def can_be_packed(self):
+		# https://developers.google.com/protocol-buffers/docs/encoding#packed
 		return self.is_repeated() and self.wire_type in (0,1,5)
 
 	def cases(self):
@@ -909,10 +910,10 @@ class Message(object):
 				return True
 		return False
 
-	def merge_unpack__additional_variables(self):
+	def unpack_merge__additional_variables(self):
 		out = []
 		if self.has_packable_fields():
-			out.append("const uint8_t* tmp_buffer_pointer = NULL;")
+			out.append("const uint8_t *tmp_buffer_pointer = NULL;")
 		if self.has_packable_fields() or self.has_field_type(('submessage',)):
 			out.append("int32_t t = 0;")
 		if self.has_complex_fields():
@@ -965,7 +966,7 @@ class Message(object):
 	def switch_tree(self, data=None, level=0):
 		t = [
 			"if (buffer + ${level} >= buffer_end) return PROTOBUF_C__WRONG_MESSAGE;" if level > 0 else "",
-			"switch(buffer[${level}]) {",
+			"switch (buffer[${level}]) {",
 			"	${cases}",
 			"	default:",
 			"		if ((buffer=skip_field(buffer, buffer_end)) == NULL) return PROTOBUF_C__WRONG_MESSAGE;",

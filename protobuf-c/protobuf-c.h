@@ -1304,13 +1304,15 @@ is_big_endian(void)
 }
 
 static inline void* memory_allocate(const size_t size,
-      ProtobufCAllocator *allocator) {
+      ProtobufCAllocator *allocator)
+{
   return allocator->alloc(allocator->allocator_data, size);
 }
 
 static inline void* memory_allocate_copy(const size_t size,
       ProtobufCAllocator *allocator,
-      const uint8_t* src, const size_t src_size) {
+      const uint8_t* src, const size_t src_size)
+{
   if (size < src_size) return NULL;
   void *ret = allocator->alloc(allocator->allocator_data, size);
   if (ret) {
@@ -1326,7 +1328,8 @@ static inline void memory_free(void *ptr, ProtobufCAllocator *allocator)
   }
 }
 
-static inline const uint8_t* read_fixed32(uint32_t* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+static inline const uint8_t* read_fixed32(uint32_t* v, const uint8_t* buffer, const uint8_t* buffer_end)
+{
   if (buffer+4 > buffer_end) return NULL;
   if (!is_big_endian()) {
     *v = *(uint32_t*)buffer;
@@ -1337,7 +1340,8 @@ static inline const uint8_t* read_fixed32(uint32_t* v, const uint8_t* buffer, co
   return buffer+4;
 }
 
-static inline const uint8_t* read_fixed64(uint64_t* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+static inline const uint8_t* read_fixed64(uint64_t* v, const uint8_t* buffer, const uint8_t* buffer_end)
+{
   if (buffer+8 > buffer_end) return NULL;
   if (!is_big_endian()) {
     *v = *(uint64_t*)buffer;
@@ -1350,7 +1354,8 @@ static inline const uint8_t* read_fixed64(uint64_t* v, const uint8_t* buffer, co
   return buffer+8;
 }
 
-static inline const uint8_t* read_bool(protobuf_c_boolean* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+static inline const uint8_t* read_bool(protobuf_c_boolean* v, const uint8_t* buffer, const uint8_t* buffer_end)
+{
   uint8_t i = 0;
   uint64_t tmp = 0;
   while (1) {
@@ -1363,7 +1368,8 @@ static inline const uint8_t* read_bool(protobuf_c_boolean* v, const uint8_t* buf
   return buffer;
 }
 
-static inline const uint8_t* read_enum(int* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+static inline const uint8_t* read_enum(int* v, const uint8_t* buffer, const uint8_t* buffer_end)
+{
   uint8_t i = 0;
   uint64_t tmp = 0;
   while (1) {
@@ -1376,7 +1382,8 @@ static inline const uint8_t* read_enum(int* v, const uint8_t* buffer, const uint
   return buffer;
 }
 
-static inline const uint8_t* read_int32(int32_t* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+static inline const uint8_t* read_int32(int32_t* v, const uint8_t* buffer, const uint8_t* buffer_end)
+{
   uint8_t i = 0;
   uint64_t tmp = 0;
   while (1) {
@@ -1389,7 +1396,8 @@ static inline const uint8_t* read_int32(int32_t* v, const uint8_t* buffer, const
   return buffer;
 }
 
-static inline const uint8_t* read_int64(int64_t* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+static inline const uint8_t* read_int64(int64_t* v, const uint8_t* buffer, const uint8_t* buffer_end)
+{
   uint8_t i = 0;
   uint64_t tmp = 0;
   while (1) {
@@ -1402,7 +1410,8 @@ static inline const uint8_t* read_int64(int64_t* v, const uint8_t* buffer, const
   return buffer;
 }
 
-static inline const uint8_t* read_sint32(int32_t* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+static inline const uint8_t* read_sint32(int32_t* v, const uint8_t* buffer, const uint8_t* buffer_end)
+{
   uint8_t i = 0;
   uint32_t tmp = 0;
   while (1) {
@@ -1415,7 +1424,8 @@ static inline const uint8_t* read_sint32(int32_t* v, const uint8_t* buffer, cons
   return buffer;
 }
 
-static inline const uint8_t* read_sint64(int64_t* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+static inline const uint8_t* read_sint64(int64_t* v, const uint8_t* buffer, const uint8_t* buffer_end)
+{
   uint8_t i = 0;
   uint64_t tmp = 0;
   while (1) {
@@ -1428,7 +1438,8 @@ static inline const uint8_t* read_sint64(int64_t* v, const uint8_t* buffer, cons
   return buffer;
 }
 
-static inline const uint8_t* read_uint32(uint32_t* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+static inline const uint8_t* read_uint32(uint32_t* v, const uint8_t* buffer, const uint8_t* buffer_end)
+{
   uint8_t i = 0;
   uint32_t tmp = 0;
   while (1) {
@@ -1441,7 +1452,8 @@ static inline const uint8_t* read_uint32(uint32_t* v, const uint8_t* buffer, con
   return buffer;
 }
 
-static inline const uint8_t* read_uint64(uint64_t* v, const uint8_t* buffer, const uint8_t* buffer_end) {
+static inline const uint8_t* read_uint64(uint64_t* v, const uint8_t* buffer, const uint8_t* buffer_end)
+{
   uint8_t i = 0;
   uint64_t tmp = 0;
   while (1) {
@@ -1454,7 +1466,8 @@ static inline const uint8_t* read_uint64(uint64_t* v, const uint8_t* buffer, con
   return buffer;
 }
 
-static inline const uint8_t* skip_varint(const uint8_t* buffer, const uint8_t* buffer_end) {
+static inline const uint8_t* skip_varint(const uint8_t* buffer, const uint8_t* buffer_end)
+{
   while (1) {
     if (buffer >= buffer_end) return NULL;
     if ((*buffer++)>>7==0) break;
@@ -1462,21 +1475,24 @@ static inline const uint8_t* skip_varint(const uint8_t* buffer, const uint8_t* b
   return buffer;
 }
 
-static inline const uint8_t* skip_fixed32(const uint8_t* buffer, const uint8_t* buffer_end) {
+static inline const uint8_t* skip_fixed32(const uint8_t* buffer, const uint8_t* buffer_end)
+{
   buffer+=4;
   if (buffer_end >= buffer)
     return buffer;
   return NULL;
 }
 
-static inline const uint8_t* skip_fixed64(const uint8_t* buffer, const uint8_t* buffer_end) {
+static inline const uint8_t* skip_fixed64(const uint8_t* buffer, const uint8_t* buffer_end)
+{
   buffer+=8;
   if (buffer_end >= buffer)
     return buffer;
   return NULL;
 }
 
-static inline const uint8_t* skip_bytes(const uint8_t* buffer, const uint8_t* buffer_end) {
+static inline const uint8_t* skip_bytes(const uint8_t* buffer, const uint8_t* buffer_end)
+{
   uint32_t v = 0;
   if ((buffer = read_uint32(&v, buffer, buffer_end)) == NULL) return NULL;
   buffer += v;
@@ -1485,7 +1501,8 @@ static inline const uint8_t* skip_bytes(const uint8_t* buffer, const uint8_t* bu
   return NULL;
 }
 
-static inline const uint8_t* skip_field(const uint8_t* buffer, const uint8_t* buffer_end) {
+static inline const uint8_t* skip_field(const uint8_t* buffer, const uint8_t* buffer_end)
+{
   uint8_t type = (*buffer)&0x7;
 
   if ((buffer=skip_varint(buffer, buffer_end)) == NULL) return NULL;
