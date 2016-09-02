@@ -1311,7 +1311,7 @@ static inline void* memory_allocate(const size_t size,
 
 static inline void* memory_allocate_copy(const size_t size,
       ProtobufCAllocator *allocator,
-      const uint8_t* src, const size_t src_size)
+      const uint8_t *src, const size_t src_size)
 {
   if (size < src_size) return NULL;
   void *ret = allocator->alloc(allocator->allocator_data, size);
@@ -1330,26 +1330,26 @@ static inline void memory_free(void *ptr, ProtobufCAllocator *allocator)
 
 static inline int memory_vector_extend_by_one(void **v, size_t n, size_t item_size, ProtobufCAllocator *allocator)
 {
-	const size_t init_size = 16;
-	if (((n-1) & n) == 0) {
-		if (n == 0) {
-			*v = memory_allocate(init_size * item_size, allocator);
-			if (*v == NULL) {
-				return -1;
-			}
-		} else if (n >= 16) {
-			void *new_ptr = memory_allocate_copy(2 * n * item_size, allocator, (const uint8_t *) *v, n * item_size);
-			if (new_ptr == NULL) {
-				return -1;
-			}
-			memory_free(*v, allocator);
-			*v = new_ptr;
-		}
-	}
-	return 0;
+  const size_t init_size = 16;
+  if (((n-1) & n) == 0) {
+    if (n == 0) {
+      *v = memory_allocate(init_size * item_size, allocator);
+      if (*v == NULL) {
+        return PROTOBUF_C__NOT_ENOUGH_MEMORY;
+      }
+    } else if (n >= 16) {
+      void *new_ptr = memory_allocate_copy(2 * n * item_size, allocator, (const uint8_t *) *v, n * item_size);
+      if (new_ptr == NULL) {
+        return PROTOBUF_C__NOT_ENOUGH_MEMORY;
+      }
+      memory_free(*v, allocator);
+      *v = new_ptr;
+    }
+  }
+  return 0;
 }
 
-static inline const uint8_t* read_fixed32(uint32_t* v, const uint8_t* buffer, const uint8_t* buffer_end)
+static inline const uint8_t *read_fixed32(uint32_t *v, const uint8_t *buffer, const uint8_t *buffer_end)
 {
   if (buffer+4 > buffer_end) return NULL;
   if (!is_big_endian()) {
@@ -1361,7 +1361,7 @@ static inline const uint8_t* read_fixed32(uint32_t* v, const uint8_t* buffer, co
   return buffer+4;
 }
 
-static inline const uint8_t* read_fixed64(uint64_t* v, const uint8_t* buffer, const uint8_t* buffer_end)
+static inline const uint8_t *read_fixed64(uint64_t *v, const uint8_t *buffer, const uint8_t *buffer_end)
 {
   if (buffer+8 > buffer_end) return NULL;
   if (!is_big_endian()) {
@@ -1375,7 +1375,7 @@ static inline const uint8_t* read_fixed64(uint64_t* v, const uint8_t* buffer, co
   return buffer+8;
 }
 
-static inline const uint8_t* read_bool(protobuf_c_boolean* v, const uint8_t* buffer, const uint8_t* buffer_end)
+static inline const uint8_t *read_bool(protobuf_c_boolean* v, const uint8_t *buffer, const uint8_t *buffer_end)
 {
   uint8_t i = 0;
   uint64_t tmp = 0;
@@ -1389,7 +1389,7 @@ static inline const uint8_t* read_bool(protobuf_c_boolean* v, const uint8_t* buf
   return buffer;
 }
 
-static inline const uint8_t* read_enum(int* v, const uint8_t* buffer, const uint8_t* buffer_end)
+static inline const uint8_t *read_enum(int* v, const uint8_t *buffer, const uint8_t *buffer_end)
 {
   uint8_t i = 0;
   uint64_t tmp = 0;
@@ -1403,7 +1403,7 @@ static inline const uint8_t* read_enum(int* v, const uint8_t* buffer, const uint
   return buffer;
 }
 
-static inline const uint8_t* read_int32(int32_t* v, const uint8_t* buffer, const uint8_t* buffer_end)
+static inline const uint8_t *read_int32(int32_t *v, const uint8_t *buffer, const uint8_t *buffer_end)
 {
   uint8_t i = 0;
   uint64_t tmp = 0;
@@ -1417,7 +1417,7 @@ static inline const uint8_t* read_int32(int32_t* v, const uint8_t* buffer, const
   return buffer;
 }
 
-static inline const uint8_t* read_int64(int64_t* v, const uint8_t* buffer, const uint8_t* buffer_end)
+static inline const uint8_t *read_int64(int64_t *v, const uint8_t *buffer, const uint8_t *buffer_end)
 {
   uint8_t i = 0;
   uint64_t tmp = 0;
@@ -1431,7 +1431,7 @@ static inline const uint8_t* read_int64(int64_t* v, const uint8_t* buffer, const
   return buffer;
 }
 
-static inline const uint8_t* read_sint32(int32_t* v, const uint8_t* buffer, const uint8_t* buffer_end)
+static inline const uint8_t *read_sint32(int32_t *v, const uint8_t *buffer, const uint8_t *buffer_end)
 {
   uint8_t i = 0;
   uint32_t tmp = 0;
@@ -1445,7 +1445,7 @@ static inline const uint8_t* read_sint32(int32_t* v, const uint8_t* buffer, cons
   return buffer;
 }
 
-static inline const uint8_t* read_sint64(int64_t* v, const uint8_t* buffer, const uint8_t* buffer_end)
+static inline const uint8_t *read_sint64(int64_t *v, const uint8_t *buffer, const uint8_t *buffer_end)
 {
   uint8_t i = 0;
   uint64_t tmp = 0;
@@ -1459,7 +1459,7 @@ static inline const uint8_t* read_sint64(int64_t* v, const uint8_t* buffer, cons
   return buffer;
 }
 
-static inline const uint8_t* read_uint32(uint32_t* v, const uint8_t* buffer, const uint8_t* buffer_end)
+static inline const uint8_t *read_uint32(uint32_t *v, const uint8_t *buffer, const uint8_t *buffer_end)
 {
   uint8_t i = 0;
   uint32_t tmp = 0;
@@ -1473,7 +1473,7 @@ static inline const uint8_t* read_uint32(uint32_t* v, const uint8_t* buffer, con
   return buffer;
 }
 
-static inline const uint8_t* read_uint64(uint64_t* v, const uint8_t* buffer, const uint8_t* buffer_end)
+static inline const uint8_t *read_uint64(uint64_t *v, const uint8_t *buffer, const uint8_t *buffer_end)
 {
   uint8_t i = 0;
   uint64_t tmp = 0;
@@ -1487,7 +1487,7 @@ static inline const uint8_t* read_uint64(uint64_t* v, const uint8_t* buffer, con
   return buffer;
 }
 
-static inline const uint8_t* skip_varint(const uint8_t* buffer, const uint8_t* buffer_end)
+static inline const uint8_t *skip_varint(const uint8_t *buffer, const uint8_t *buffer_end)
 {
   while (1) {
     if (buffer >= buffer_end) return NULL;
@@ -1496,7 +1496,7 @@ static inline const uint8_t* skip_varint(const uint8_t* buffer, const uint8_t* b
   return buffer;
 }
 
-static inline const uint8_t* skip_fixed32(const uint8_t* buffer, const uint8_t* buffer_end)
+static inline const uint8_t *skip_fixed32(const uint8_t *buffer, const uint8_t *buffer_end)
 {
   buffer+=4;
   if (buffer_end >= buffer)
@@ -1504,7 +1504,7 @@ static inline const uint8_t* skip_fixed32(const uint8_t* buffer, const uint8_t* 
   return NULL;
 }
 
-static inline const uint8_t* skip_fixed64(const uint8_t* buffer, const uint8_t* buffer_end)
+static inline const uint8_t *skip_fixed64(const uint8_t *buffer, const uint8_t *buffer_end)
 {
   buffer+=8;
   if (buffer_end >= buffer)
@@ -1512,7 +1512,7 @@ static inline const uint8_t* skip_fixed64(const uint8_t* buffer, const uint8_t* 
   return NULL;
 }
 
-static inline const uint8_t* skip_bytes(const uint8_t* buffer, const uint8_t* buffer_end)
+static inline const uint8_t *skip_bytes(const uint8_t *buffer, const uint8_t *buffer_end)
 {
   uint32_t v = 0;
   if ((buffer = read_uint32(&v, buffer, buffer_end)) == NULL) return NULL;
@@ -1564,17 +1564,17 @@ static inline const uint8_t* skip_field(const uint8_t* buffer, const uint8_t* bu
 static inline size_t
 get_tag_size(unsigned number)
 {
-	if (number < (1 << 4)) {
-		return 1;
-	} else if (number < (1 << 11)) {
-		return 2;
-	} else if (number < (1 << 18)) {
-		return 3;
-	} else if (number < (1 << 25)) {
-		return 4;
-	} else {
-		return 5;
-	}
+  if (number < (1 << 4)) {
+    return 1;
+  } else if (number < (1 << 11)) {
+    return 2;
+  } else if (number < (1 << 18)) {
+    return 3;
+  } else if (number < (1 << 25)) {
+    return 4;
+  } else {
+    return 5;
+  }
 }
 
 /**
@@ -1589,17 +1589,17 @@ get_tag_size(unsigned number)
 static inline size_t
 uint32_size(uint32_t v)
 {
-	if (v < (1 << 7)) {
-		return 1;
-	} else if (v < (1 << 14)) {
-		return 2;
-	} else if (v < (1 << 21)) {
-		return 3;
-	} else if (v < (1 << 28)) {
-		return 4;
-	} else {
-		return 5;
-	}
+  if (v < (1 << 7)) {
+    return 1;
+  } else if (v < (1 << 14)) {
+    return 2;
+  } else if (v < (1 << 21)) {
+    return 3;
+  } else if (v < (1 << 28)) {
+    return 4;
+  } else {
+    return 5;
+  }
 }
 
 /**
@@ -1614,19 +1614,19 @@ uint32_size(uint32_t v)
 static inline size_t
 int32_size(int32_t v)
 {
-	if (v < 0) {
-		return 10;
-	} else if (v < (1 << 7)) {
-		return 1;
-	} else if (v < (1 << 14)) {
-		return 2;
-	} else if (v < (1 << 21)) {
-		return 3;
-	} else if (v < (1 << 28)) {
-		return 4;
-	} else {
-		return 5;
-	}
+  if (v < 0) {
+    return 10;
+  } else if (v < (1 << 7)) {
+    return 1;
+  } else if (v < (1 << 14)) {
+    return 2;
+  } else if (v < (1 << 21)) {
+    return 3;
+  } else if (v < (1 << 28)) {
+    return 4;
+  } else {
+    return 5;
+  }
 }
 
 /**
@@ -1641,10 +1641,10 @@ int32_size(int32_t v)
 static inline uint32_t
 zigzag32(int32_t v)
 {
-	if (v < 0)
-		return ((uint32_t) (-v)) * 2 - 1;
-	else
-		return v * 2;
+  if (v < 0)
+    return ((uint32_t) (-v)) * 2 - 1;
+  else
+    return v * 2;
 }
 
 /**
@@ -1660,7 +1660,7 @@ zigzag32(int32_t v)
 static inline size_t
 sint32_size(int32_t v)
 {
-	return uint32_size(zigzag32(v));
+  return uint32_size(zigzag32(v));
 }
 
 /**
@@ -1675,23 +1675,23 @@ sint32_size(int32_t v)
 static inline size_t
 uint64_size(uint64_t v)
 {
-	uint32_t upper_v = (uint32_t) (v >> 32);
+  uint32_t upper_v = (uint32_t) (v >> 32);
 
-	if (upper_v == 0) {
-		return uint32_size((uint32_t) v);
-	} else if (upper_v < (1 << 3)) {
-		return 5;
-	} else if (upper_v < (1 << 10)) {
-		return 6;
-	} else if (upper_v < (1 << 17)) {
-		return 7;
-	} else if (upper_v < (1 << 24)) {
-		return 8;
-	} else if (upper_v < (1U << 31)) {
-		return 9;
-	} else {
-		return 10;
-	}
+  if (upper_v == 0) {
+    return uint32_size((uint32_t) v);
+  } else if (upper_v < (1 << 3)) {
+    return 5;
+  } else if (upper_v < (1 << 10)) {
+    return 6;
+  } else if (upper_v < (1 << 17)) {
+    return 7;
+  } else if (upper_v < (1 << 24)) {
+    return 8;
+  } else if (upper_v < (1U << 31)) {
+    return 9;
+  } else {
+    return 10;
+  }
 }
 
 /**
@@ -1706,10 +1706,10 @@ uint64_size(uint64_t v)
 static inline uint64_t
 zigzag64(int64_t v)
 {
-	if (v < 0)
-		return ((uint64_t) (-v)) * 2 - 1;
-	else
-		return v * 2;
+  if (v < 0)
+    return ((uint64_t) (-v)) * 2 - 1;
+  else
+    return v * 2;
 }
 
 /**
@@ -1725,30 +1725,30 @@ zigzag64(int64_t v)
 static inline size_t
 sint64_size(int64_t v)
 {
-	return uint64_size(zigzag64(v));
+  return uint64_size(zigzag64(v));
 }
 
 
 static inline size_t
 string_size(const char *str)
 {
-	size_t len = strlen(str);
-	return uint32_size(len) + len;
+  size_t len = strlen(str);
+  return uint32_size(len) + len;
 }
 
 
 static inline size_t
 submessage_size(size_t len)
 {
-	return uint32_size(len) + len;
+  return uint32_size(len) + len;
 }
 
 
 static inline size_t
 bytes_size(const ProtobufCBinaryData bd)
 {
-	size_t len = bd.len;
-	return uint32_size(len) + len;
+  size_t len = bd.len;
+  return uint32_size(len) + len;
 }
 
 
@@ -1775,27 +1775,27 @@ bytes_size(const ProtobufCBinaryData bd)
 static inline size_t
 uint32_pack(uint32_t value, uint8_t *out)
 {
-	unsigned rv = 0;
+  unsigned rv = 0;
 
-	if (value >= 0x80) {
-		out[rv++] = value | 0x80;
-		value >>= 7;
-		if (value >= 0x80) {
-			out[rv++] = value | 0x80;
-			value >>= 7;
-			if (value >= 0x80) {
-				out[rv++] = value | 0x80;
-				value >>= 7;
-				if (value >= 0x80) {
-					out[rv++] = value | 0x80;
-					value >>= 7;
-				}
-			}
-		}
-	}
-	/* assert: value<128 */
-	out[rv++] = value;
-	return rv;
+  if (value >= 0x80) {
+    out[rv++] = value | 0x80;
+    value >>= 7;
+    if (value >= 0x80) {
+      out[rv++] = value | 0x80;
+      value >>= 7;
+      if (value >= 0x80) {
+        out[rv++] = value | 0x80;
+        value >>= 7;
+        if (value >= 0x80) {
+          out[rv++] = value | 0x80;
+          value >>= 7;
+        }
+      }
+    }
+  }
+  /* assert: value<128 */
+  out[rv++] = value;
+  return rv;
 }
 
 /**
@@ -1812,18 +1812,18 @@ uint32_pack(uint32_t value, uint8_t *out)
 static inline size_t
 int32_pack(int32_t value, uint8_t *out)
 {
-	if (value < 0) {
-		out[0] = value | 0x80;
-		out[1] = (value >> 7) | 0x80;
-		out[2] = (value >> 14) | 0x80;
-		out[3] = (value >> 21) | 0x80;
-		out[4] = (value >> 28) | 0x80;
-		out[5] = out[6] = out[7] = out[8] = 0xff;
-		out[9] = 0x01;
-		return 10;
-	} else {
-		return uint32_pack(value, out);
-	}
+  if (value < 0) {
+    out[0] = value | 0x80;
+    out[1] = (value >> 7) | 0x80;
+    out[2] = (value >> 14) | 0x80;
+    out[3] = (value >> 21) | 0x80;
+    out[4] = (value >> 28) | 0x80;
+    out[5] = out[6] = out[7] = out[8] = 0xff;
+    out[9] = 0x01;
+    return 10;
+  } else {
+    return uint32_pack(value, out);
+  }
 }
 
 /**
@@ -1840,7 +1840,7 @@ int32_pack(int32_t value, uint8_t *out)
 static inline size_t
 sint32_pack(int32_t value, uint8_t *out)
 {
-	return uint32_pack(zigzag32(value), out);
+  return uint32_pack(zigzag32(value), out);
 }
 
 /**
@@ -1857,30 +1857,30 @@ sint32_pack(int32_t value, uint8_t *out)
 static inline size_t
 uint64_pack(uint64_t value, uint8_t *out)
 {
-	uint32_t hi = (uint32_t) (value >> 32);
-	uint32_t lo = (uint32_t) value;
-	unsigned rv;
+  uint32_t hi = (uint32_t) (value >> 32);
+  uint32_t lo = (uint32_t) value;
+  unsigned rv;
 
-	if (hi == 0)
-		return uint32_pack((uint32_t) lo, out);
-	out[0] = (lo) | 0x80;
-	out[1] = (lo >> 7) | 0x80;
-	out[2] = (lo >> 14) | 0x80;
-	out[3] = (lo >> 21) | 0x80;
-	if (hi < 8) {
-		out[4] = (hi << 4) | (lo >> 28);
-		return 5;
-	} else {
-		out[4] = ((hi & 7) << 4) | (lo >> 28) | 0x80;
-		hi >>= 3;
-	}
-	rv = 5;
-	while (hi >= 128) {
-		out[rv++] = hi | 0x80;
-		hi >>= 7;
-	}
-	out[rv++] = hi;
-	return rv;
+  if (hi == 0)
+    return uint32_pack((uint32_t) lo, out);
+  out[0] = (lo) | 0x80;
+  out[1] = (lo >> 7) | 0x80;
+  out[2] = (lo >> 14) | 0x80;
+  out[3] = (lo >> 21) | 0x80;
+  if (hi < 8) {
+    out[4] = (hi << 4) | (lo >> 28);
+    return 5;
+  } else {
+    out[4] = ((hi & 7) << 4) | (lo >> 28) | 0x80;
+    hi >>= 3;
+  }
+  rv = 5;
+  while (hi >= 128) {
+    out[rv++] = hi | 0x80;
+    hi >>= 7;
+  }
+  out[rv++] = hi;
+  return rv;
 }
 
 /**
@@ -1897,7 +1897,7 @@ uint64_pack(uint64_t value, uint8_t *out)
 static inline size_t
 sint64_pack(int64_t value, uint8_t *out)
 {
-	return uint64_pack(zigzag64(value), out);
+  return uint64_pack(zigzag64(value), out);
 }
 
 /**
@@ -1914,17 +1914,17 @@ sint64_pack(int64_t value, uint8_t *out)
 static inline size_t
 fixed32_pack(uint32_t value, void *out)
 {
-	if (!is_big_endian()) {
-		memcpy(out, &value, 4);
-	} else {
-		uint8_t *buf = (uint8_t *) out;
+  if (!is_big_endian()) {
+    memcpy(out, &value, 4);
+  } else {
+    uint8_t *buf = (uint8_t *) out;
 
-		buf[0] = value;
-		buf[1] = value >> 8;
-		buf[2] = value >> 16;
-		buf[3] = value >> 24;
-	}
-	return 4;
+    buf[0] = value;
+    buf[1] = value >> 8;
+    buf[2] = value >> 16;
+    buf[3] = value >> 24;
+  }
+  return 4;
 }
 
 
@@ -1932,7 +1932,7 @@ fixed32_pack(uint32_t value, void *out)
 static inline size_t
 fixed32_pack_p(const void *value, void *out)
 {
-	return fixed32_pack(* (const uint32_t *) value, out);
+  return fixed32_pack(* (const uint32_t *) value, out);
 }
 
 /**
@@ -1953,13 +1953,13 @@ fixed32_pack_p(const void *value, void *out)
 static inline size_t
 fixed64_pack(uint64_t value, void *out)
 {
-	if (!is_big_endian()) {
-		memcpy(out, &value, 8);
-	} else {
-		fixed32_pack(value, out);
-		fixed32_pack(value >> 32, ((char *) out) + 4);
-	}
-	return 8;
+  if (!is_big_endian()) {
+    memcpy(out, &value, 8);
+  } else {
+    fixed32_pack(value, out);
+    fixed32_pack(value >> 32, ((char *) out) + 4);
+  }
+  return 8;
 }
 
 
@@ -1967,7 +1967,7 @@ fixed64_pack(uint64_t value, void *out)
 static inline size_t
 fixed64_pack_p(const void *value, void *out)
 {
-	return fixed64_pack(* (const uint64_t *) value, out);
+  return fixed64_pack(* (const uint64_t *) value, out);
 }
 
 /**
@@ -1986,8 +1986,8 @@ fixed64_pack_p(const void *value, void *out)
 static inline size_t
 boolean_pack(protobuf_c_boolean value, uint8_t *out)
 {
-	*out = (value != 0);
-	return 1;
+  *out = (value != 0);
+  return 1;
 }
 
 /**
@@ -2008,10 +2008,10 @@ boolean_pack(protobuf_c_boolean value, uint8_t *out)
 static inline size_t
 string_pack(const char *str, uint8_t *out)
 {
-	size_t len = strlen(str);
-	size_t rv = uint32_pack(len, out);
-	memcpy(out + rv, str, len);
-	return rv + len;
+  size_t len = strlen(str);
+  size_t rv = uint32_pack(len, out);
+  memcpy(out + rv, str, len);
+  return rv + len;
 }
 
 /**
@@ -2028,10 +2028,10 @@ string_pack(const char *str, uint8_t *out)
 static inline size_t
 binary_data_pack(const ProtobufCBinaryData *bd, uint8_t *out)
 {
-	size_t len = bd->len;
-	size_t rv = uint32_pack(len, out);
-	memcpy(out + rv, bd->data, len);
-	return rv + len;
+  size_t len = bd->len;
+  size_t rv = uint32_pack(len, out);
+  memcpy(out + rv, bd->data, len);
+  return rv + len;
 }
 
 
