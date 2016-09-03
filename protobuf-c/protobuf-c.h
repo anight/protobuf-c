@@ -224,6 +224,10 @@ PROTOBUF_C__BEGIN_DECLS
 #define PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC    0x28aaeef9
 #define PROTOBUF_C__ENUM_DESCRIPTOR_MAGIC       0x114315af
 
+#define PROTOBUF_C__WRONG_MESSAGE       -1
+#define PROTOBUF_C__NOT_ENOUGH_MEMORY   -2
+
+
 /**
  * \defgroup api Public API
  *
@@ -1522,30 +1526,59 @@ static inline const uint8_t *skip_bytes(const uint8_t *buffer, const uint8_t *bu
   return NULL;
 }
 
-static inline const uint8_t* skip_field(const uint8_t* buffer, const uint8_t* buffer_end)
+static inline int unknown_field(ProtobufCMessage *m, ProtobufCAllocator *allocator, const uint8_t **buffer, const uint8_t *buffer_end)
 {
-  uint8_t type = (*buffer)&0x7;
+  const uint8_t *data_start;
+  const uint8_t *data_end;
+  uint32_t wire_type_and_tag;
+  if ((data_start = read_uint32(&wire_type_and_tag, *buffer, buffer_end)) == NULL) {
+    return PROTOBUF_C__WRONG_MESSAGE;
+  }
 
-  if ((buffer=skip_varint(buffer, buffer_end)) == NULL) return NULL;
+  if (data_start - *buffer > 5) {
+    return PROTOBUF_C__WRONG_MESSAGE;
+  }
 
-  switch (type) {
-    case 0: //varint
-      if ((buffer=skip_varint(buffer, buffer_end)) == NULL) return NULL;
+  if (0 > memory_vector_extend_by_one((void **) &m->unknown_fields, m->n_unknown_fields, sizeof(ProtobufCMessageUnknownField), allocator)) {
+    return PROTOBUF_C__NOT_ENOUGH_MEMORY;
+  }
+
+  ProtobufCMessageUnknownField *unknown = m->unknown_fields + m->n_unknown_fields;
+  m->n_unknown_fields++;
+
+  unknown->tag = wire_type_and_tag >> 3;
+  unknown->wire_type = (ProtobufCWireType) (wire_type_and_tag & 7);
+
+  switch (unknown->wire_type) {
+    case PROTOBUF_C_WIRE_TYPE_VARINT:
+      data_end = skip_varint(data_start, buffer_end);
       break;
-    case 1: //fixed64
-      if ((buffer=skip_fixed64(buffer, buffer_end)) == NULL) return NULL;
+    case PROTOBUF_C_WIRE_TYPE_64BIT:
+      data_end = skip_fixed64(data_start, buffer_end);
       break;
-    case 2: //bytes
-      if ((buffer=skip_bytes(buffer, buffer_end)) == NULL) return NULL;
+    case PROTOBUF_C_WIRE_TYPE_LENGTH_PREFIXED:
+      data_end = skip_bytes(data_start, buffer_end);
       break;
-    case 5: //fixed32
-      if ((buffer=skip_fixed32(buffer, buffer_end)) == NULL) return NULL;
+    case PROTOBUF_C_WIRE_TYPE_32BIT:
+      data_end = skip_fixed32(data_start, buffer_end);
       break;
     default:
-      return NULL;
-      break;
+      return PROTOBUF_C__WRONG_MESSAGE;
   }
-  return buffer;
+
+  if (data_end == NULL) {
+    return PROTOBUF_C__WRONG_MESSAGE;
+  }
+
+  unknown->len = data_end - data_start;
+  unknown->data = (uint8_t *) memory_allocate_copy(unknown->len, allocator, data_start, unknown->len);
+  if (unknown->data == NULL) {
+    return PROTOBUF_C__NOT_ENOUGH_MEMORY;
+  }
+
+  *buffer = data_end;
+
+  return 0;
 }
 
 

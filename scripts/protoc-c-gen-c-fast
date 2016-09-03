@@ -40,9 +40,14 @@ size_t ${message_type}__get_packed_size
                      (const ${MessageType} *message)
 {
 	assert(message->base.descriptor == &${message_type}__descriptor);
-	${get_packed_size__additional_variables}
+	unsigned i;
 	size_t sz = 0;
+	${get_packed_size__additional_variables}
 	${get_packed_size_fields}
+	for (i = 0; i < message->base.n_unknown_fields; i++) {
+		const ProtobufCMessageUnknownField *unknown = message->base.unknown_fields + i;
+		sz += get_tag_size(unknown->tag) + unknown->len;
+	}
 	return sz;
 }
 
@@ -51,9 +56,17 @@ size_t ${message_type}__pack
                       uint8_t *out)
 {
 	assert(message->base.descriptor == &${message_type}__descriptor);
-	${pack__additional_variables}
+	unsigned i;
 	uint8_t *p = out;
+	${pack__additional_variables}
 	${pack_fields}
+	for (i = 0; i < message->base.n_unknown_fields; i++) {
+		const ProtobufCMessageUnknownField *unknown = message->base.unknown_fields + i;
+		uint32_t wire_type_and_tag = (unknown->tag << 3) + unknown->wire_type;
+		p += uint32_pack(wire_type_and_tag, p);
+		memmove(p, unknown->data, unknown->len);
+		p += unknown->len;
+	}
 	return p - out;
 }
 
@@ -62,9 +75,19 @@ size_t ${message_type}__pack_to_buffer
                       ProtobufCBuffer *buffer)
 {
 	assert(message->base.descriptor == &${message_type}__descriptor);
-	${pack_to_buffer__additional_variables}
+	unsigned i;
 	size_t sz = 0;
+	size_t rv;
+	uint8_t scratch[MAX_UINT64_ENCODED_SIZE * 2];
+	${pack_to_buffer__additional_variables}
 	${pack_to_buffer_fields}
+	for (i = 0; i < message->base.n_unknown_fields; i++) {
+		const ProtobufCMessageUnknownField *unknown = message->base.unknown_fields + i;
+		uint32_t wire_type_and_tag = (unknown->tag << 3) + unknown->wire_type;
+		rv = uint32_pack(wire_type_and_tag, scratch);
+		buffer->append(buffer, rv, scratch); sz += rv;
+		buffer->append(buffer, unknown->len, unknown->data); sz += unknown->len;
+	}
 	return sz;
 }
 
@@ -108,8 +131,13 @@ void ${message_type}__free_unpacked
 {
 	if (allocator == NULL)
 		allocator = &protobuf_c_default_allocator;
-	${free_unpacked__additional_variables}
+	unsigned i;
 	${free_fields}
+	for (i = 0; i < message->base.n_unknown_fields; i++) {
+		ProtobufCMessageUnknownField *unknown = message->base.unknown_fields + i;
+		memory_free(unknown->data, allocator);
+	}
+	memory_free(message->base.unknown_fields, allocator);
 	memory_free(message, allocator);
 }
 
@@ -914,11 +942,6 @@ class Message(object):
 			out.append("(void) message;")
 		return self.render("\n".join(out))
 
-	def free_unpacked__additional_variables(self):
-		if self.has_repeated_complex_fields():
-			return "unsigned i;"
-		return ""
-
 	def check__additional_variables(self):
 		if self.has_repeated_complex_fields():
 			return "unsigned i;"
@@ -926,7 +949,7 @@ class Message(object):
 
 	def get_packed_size__additional_variables(self):
 		if self.has_repeated_fields():
-			return self.render("\n".join( ["unsigned i;", "size_t rv;"] ))
+			return self.render("size_t rv;")
 		return ""
 
 	def pack__additional_variables(self):
@@ -934,17 +957,10 @@ class Message(object):
 		if self.pack_uses_length_prediction_trick():
 			out.append("uint8_t *varint_length_p;")
 			out.append("size_t varint_length, length, reserved_length;")
-		if self.has_repeated_fields():
-			out.append("unsigned i;")
 		return self.render("\n".join(out))
 
 	def pack_to_buffer__additional_variables(self):
 		out = []
-		if self.has_repeated_fields():
-			out.append("unsigned i;")
-		if len(self.fields) > 0:
-			out.append("size_t rv;")
-			out.append("uint8_t scratch[MAX_UINT64_ENCODED_SIZE * 2];")
 		if self.has_field_type(('submessage',)):
 			out.append("uint8_t simple_buffer_scratch[256];")
 			out.append("ProtobufCBufferSimple simple_buffer;")
@@ -961,8 +977,11 @@ class Message(object):
 			"switch (buffer[${level}]) {",
 			"	${cases}",
 			"	default:",
-			"		if ((buffer=skip_field(buffer, buffer_end)) == NULL) return PROTOBUF_C__WRONG_MESSAGE;",
+			"	{",
+			"		int ret = unknown_field(&message->base, allocator, &buffer, buffer_end);",
+			"		if (0 > ret) return ret;",
 			"		continue;",
+			"	}"
 			"}",
 		]
 
